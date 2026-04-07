@@ -1,0 +1,133 @@
+package api
+
+import (
+	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/middleware"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Handlers struct {
+	AuthHdl *auth.Handler
+}
+
+type Router struct {
+	handlers Handlers
+	engine   *gin.Engine
+}
+
+func NewRouter(h Handlers) *Router {
+	return &Router{
+		handlers: h,
+		engine:   gin.Default(),
+	}
+}
+
+func (r *Router) Setup() *gin.Engine {
+	// Create rate limiter (5 requests per minute)
+	authRateLimiter := middleware.CreateRateLimiter(5)
+
+	// Health check
+	r.engine.GET("/health", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
+
+	// API v1
+	v1 := r.engine.Group("/api/v1")
+	{
+		// Auth routes (public) with rate limiting
+		authGroup := v1.Group("/auth")
+		authGroup.Use(middleware.RateLimitMiddleware(authRateLimiter))
+		{
+			authGroup.POST("/register", r.handlers.AuthHdl.Register)
+			authGroup.POST("/login", r.handlers.AuthHdl.Login)
+			authGroup.POST("/refresh", r.handlers.AuthHdl.Refresh)
+			authGroup.POST("/logout", r.handlers.AuthHdl.Logout)
+
+			// 2FA routes | не сделано
+			twoFA := authGroup.Group("/2fa")
+			{
+				twoFA.POST("/setup", r.handlers.AuthHdl.Setup2FA)
+				twoFA.POST("/verify", r.handlers.AuthHdl.Verify2FA)
+				twoFA.POST("/enable", r.handlers.AuthHdl.Enable2FA)
+				twoFA.POST("/disable", r.handlers.AuthHdl.Disable2FA)
+			}
+		}
+
+		// Protected routes (require authentication)
+		// TODO: Add auth middleware
+		protected := v1.Group("")
+		{
+			// User routes
+			users := protected.Group("/users")
+			{
+				users.GET("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get me"}) })
+				users.PUT("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update me"}) })
+				users.DELETE("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete me"}) })
+			}
+
+			// Project routes
+			projects := protected.Group("/projects")
+			{
+				projects.GET("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list projects"}) })
+				projects.POST("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create project"}) })
+				projects.GET("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get project"}) })
+				projects.PUT("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update project"}) })
+				projects.DELETE("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
+
+				// Project participants
+				projects.GET("/:id/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get participants"}) })
+				projects.POST("/:id/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
+				projects.PUT("/:id/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update participant"}) })
+				projects.DELETE("/:id/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "remove participant"}) })
+
+				// Project statuses
+				projects.GET("/:id/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get statuses"}) })
+				projects.POST("/:id/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create status"}) })
+				projects.PUT("/:id/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update status"}) })
+				projects.DELETE("/:id/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete status"}) })
+
+				// Project priorities
+				projects.GET("/:id/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get priorities"}) })
+				projects.POST("/:id/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create priority"}) })
+				projects.PUT("/:id/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update priority"}) })
+				projects.DELETE("/:id/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete priority"}) })
+			}
+
+			// Task routes
+			tasks := protected.Group("/tasks")
+			{
+				tasks.GET("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list tasks"}) })
+				tasks.POST("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create task"}) })
+				tasks.GET("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task"}) })
+				tasks.PUT("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update task"}) })
+				tasks.DELETE("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete task"}) })
+
+				// Task history
+				tasks.GET("/:id/history", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task history"}) })
+
+				// Task comments
+				tasks.GET("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get comments"}) })
+				tasks.POST("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create comment"}) })
+				tasks.PUT("/:id/comments/:comment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update comment"}) })
+				tasks.DELETE("/:id/comments/:comment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete comment"}) })
+
+				// Task attachments
+				tasks.GET("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get attachments"}) })
+				tasks.POST("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "upload attachment"}) })
+				tasks.GET("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "download attachment"}) })
+				tasks.DELETE("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete attachment"}) })
+			}
+
+			// Notification routes
+			notifications := protected.Group("/notifications")
+			{
+				notifications.GET("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list notifications"}) })
+				notifications.PUT("/:id/read", func(c *gin.Context) { c.JSON(200, gin.H{"message": "mark as read"}) })
+				notifications.PUT("/read-all", func(c *gin.Context) { c.JSON(200, gin.H{"message": "mark all as read"}) })
+			}
+		}
+	}
+
+	return r.engine
+}
