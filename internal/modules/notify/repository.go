@@ -1,6 +1,9 @@
 package notify
 
-import "gorm.io/gorm"
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
 
 type Repository interface {
 	Create(notification *Notification) error
@@ -9,6 +12,7 @@ type Repository interface {
 	GetUnreadByUserID(userID string) ([]Notification, error)
 	MarkAsRead(id uint) error
 	MarkAllAsRead(userID string) error
+	DeleteByUserID(userID uuid.UUID) error
 }
 
 type repository struct {
@@ -47,4 +51,8 @@ func (r *repository) MarkAsRead(id uint) error {
 func (r *repository) MarkAllAsRead(userID string) error {
 	// TODO: Implement
 	return nil
+}
+
+func (r *repository) DeleteByUserID(userID uuid.UUID) error {
+	return r.db.Where("user_id = ?", userID).Delete(&Notification{}).Error
 }

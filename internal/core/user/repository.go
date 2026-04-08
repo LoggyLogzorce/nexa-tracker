@@ -11,6 +11,7 @@ type Repository interface {
 	GetByEmail(email string) (*User, error)
 	Update(user *User) error
 	Delete(id uuid.UUID) error
+	UserOwnsProjects(userID uuid.UUID) (bool, error)
 }
 
 type repository struct {
@@ -49,4 +50,17 @@ func (r *repository) Update(user *User) error {
 
 func (r *repository) Delete(id uuid.UUID) error {
 	return r.db.Where("id = ?", id).Delete(&User{}).Error
+}
+
+func (r *repository) UserOwnsProjects(userID uuid.UUID) (bool, error) {
+	var count int64
+	err := r.db.Table("projects").
+		Where("owner_id = ?", userID).
+		Count(&count).Error
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
 }

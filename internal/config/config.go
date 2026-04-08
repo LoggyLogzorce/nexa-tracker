@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,6 +14,11 @@ type Config struct {
 	Database DatabaseConfig
 	JWT      JWTConfig
 	Cookie   CookieConfig
+	Modules  CustomModule
+}
+
+type CustomModule struct {
+	Notify bool
 }
 
 type ServerConfig struct {
@@ -58,6 +64,12 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("COOKIE_SAME_SITE invalid: %w", err)
 	}
 
+	notifyModule, err := strconv.ParseBool(getEnv("NOTIFY_MODULE", "false"))
+	if err != nil {
+		notifyModule = false
+		log.Println("NOTIFY_MODULE is invalid, continue with false")
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "0.0.0.0"),
@@ -80,6 +92,9 @@ func Load() (*Config, error) {
 			Domain:   getEnv("COOKIE_DOMAIN", ""),
 			Secure:   getEnv("COOKIE_SECURE", "false"),
 			SameSite: http.SameSite(sameSite),
+		},
+		Modules: CustomModule{
+			Notify: notifyModule,
 		},
 	}, nil
 }

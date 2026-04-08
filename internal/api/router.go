@@ -1,25 +1,28 @@
 package api
 
 import (
-	"nexa-task-tracker/internal/core/auth"
-	"nexa-task-tracker/internal/middleware"
-
 	"github.com/gin-gonic/gin"
+	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/middleware"
 )
 
 type Handlers struct {
 	AuthHdl *auth.Handler
+	UserHdl *user.Handler
 }
 
 type Router struct {
-	handlers Handlers
-	engine   *gin.Engine
+	handlers  Handlers
+	engine    *gin.Engine
+	jwtSecret string
 }
 
-func NewRouter(h Handlers) *Router {
+func NewRouter(h Handlers, jwtSecret string) *Router {
 	return &Router{
-		handlers: h,
-		engine:   gin.Default(),
+		handlers:  h,
+		engine:    gin.Default(),
+		jwtSecret: jwtSecret,
 	}
 }
 
@@ -55,15 +58,15 @@ func (r *Router) Setup() *gin.Engine {
 		}
 
 		// Protected routes (require authentication)
-		// TODO: Add auth middleware
 		protected := v1.Group("")
+		protected.Use(middleware.Auth(r.jwtSecret))
 		{
 			// User routes
 			users := protected.Group("/users")
 			{
-				users.GET("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get me"}) })
-				users.PUT("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update me"}) })
-				users.DELETE("/me", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete me"}) })
+				users.GET("/me", r.handlers.UserHdl.GetMe)
+				users.PUT("/me", r.handlers.UserHdl.UpdateMe)
+				users.DELETE("/me", r.handlers.UserHdl.DeleteMe)
 			}
 
 			// Project routes
@@ -119,13 +122,6 @@ func (r *Router) Setup() *gin.Engine {
 				tasks.DELETE("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete attachment"}) })
 			}
 
-			// Notification routes
-			notifications := protected.Group("/notifications")
-			{
-				notifications.GET("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list notifications"}) })
-				notifications.PUT("/:id/read", func(c *gin.Context) { c.JSON(200, gin.H{"message": "mark as read"}) })
-				notifications.PUT("/read-all", func(c *gin.Context) { c.JSON(200, gin.H{"message": "mark all as read"}) })
-			}
 		}
 	}
 

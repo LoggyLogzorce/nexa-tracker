@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"nexa-task-tracker/internal/pkg/jwt"
 )
 
 const (
@@ -15,7 +16,6 @@ const (
 
 func Auth(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Implement JWT authentication
 		// 1. Extract token from Authorization header
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -33,12 +33,17 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 		}
 
 		// 3. Validate token
-		// TODO: Call jwt.Validate(parts[1], jwtSecret)
+		claims, err := jwt.Validate(parts[1], jwtSecret)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			c.Abort()
+			return
+		}
 
 		// 4. Set user info in context
-		// c.Set(UserIDKey, claims.UserID)
-		// c.Set(UserEmailKey, claims.Email)
-		// c.Set(UserRoleKey, claims.Role)
+		c.Set(UserIDKey, claims.UserID)
+		c.Set(UserEmailKey, claims.Email)
+		c.Set(UserRoleKey, claims.Role)
 
 		c.Next()
 	}
@@ -46,7 +51,35 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 
 func OptionalAuth(jwtSecret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// TODO: Same as Auth but don't abort if no token
+		// Extract token from Authorization header
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			// No token provided, continue without authentication
+			c.Next()
+			return
+		}
+
+		// Check Bearer prefix
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			// Invalid format, continue without authentication
+			c.Next()
+			return
+		}
+
+		// Validate token
+		claims, err := jwt.Validate(parts[1], jwtSecret)
+		if err != nil {
+			// Invalid token, continue without authentication
+			c.Next()
+			return
+		}
+
+		// Set user info in context if token is valid
+		c.Set(UserIDKey, claims.UserID)
+		c.Set(UserEmailKey, claims.Email)
+		c.Set(UserRoleKey, claims.Role)
+
 		c.Next()
 	}
 }

@@ -1,5 +1,7 @@
 package notify
 
+import "nexa-task-tracker/internal/pkg/events"
+
 type Service interface {
 	Create(notification *Notification) error
 	GetByUserID(userID string, limit int) ([]Notification, error)
@@ -9,6 +11,7 @@ type Service interface {
 	NotifyTaskAssigned(taskID uint, assigneeID, assignerID string) error
 	NotifyTaskUpdated(taskID uint, userID string) error
 	NotifyCommentAdded(taskID uint, commentID uint, userID string) error
+	HandleUserDeleted(event events.Event) error
 }
 
 type service struct {

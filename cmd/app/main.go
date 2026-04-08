@@ -1,8 +1,14 @@
 package main
 
 import (
+	"fmt"
+	"github.com/gin-gonic/gin"
 	"log"
+	"nexa-task-tracker/internal/modules/notify"
+	"os"
 	_ "os"
+	"os/signal"
+	"syscall"
 
 	"github.com/joho/godotenv"
 	"nexa-task-tracker/internal/api"
@@ -18,9 +24,12 @@ import (
 	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/db"
+	"nexa-task-tracker/internal/pkg/events"
 )
 
 func main() {
+	gin.SetMode(gin.DebugMode)
+
 	// Load .env file
 	if err := godotenv.Load(); err != nil {
 		log.Println("No .env file found, using environment variables")
@@ -61,30 +70,45 @@ func main() {
 		log.Fatal("Failed to run migrations:", err)
 	}
 
+	// Create EventBus
+	eventBus := events.NewEventBus()
+
 	// Initialize repositories
 	userRepo := user.NewRepository(database)
 	authRepo := auth.NewRepository(database)
 
 	// Initialize services
+	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
 	// Initialize handlers
+	userHandler := user.NewHandler(userService)
 	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
-	// Setup router
 	h := api.Handlers{
 		AuthHdl: authHandler,
-		// ...
+		UserHdl: userHandler,
 	}
-	router := api.NewRouter(h)
-	// notify.Init(database, router)
+
+	// Setup router
+	router := api.NewRouter(h, cfg.JWT.Secret)
 	engine := router.Setup()
 
-	// Start server
-	addr := cfg.Server.Host + ":" + cfg.Server.Port
-	log.Printf("Starting server on %s", addr)
-
-	if err := engine.Run(addr); err != nil {
-		log.Fatal("Failed to start server:", err)
+	// Setup modules
+	if cfg.Modules.Notify {
+		notify.Init(database, eventBus, engine, cfg.JWT.Secret)
 	}
+
+	// Start server
+	go func() {
+		if err := engine.Run(fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)); err != nil {
+			log.Fatal("Failed to start server:", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("Shutting down...")
 }
