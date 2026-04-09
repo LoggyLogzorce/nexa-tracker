@@ -1,16 +1,17 @@
 package project
 
 import (
+	"context"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Repository interface {
-	Create(project *Project) error
-	GetByID(id uint) (*Project, error)
-	List(ownerID uuid.UUID) ([]Project, error)
-	Update(project *Project) error
-	Delete(id uint) error
+	Create(ctx context.Context, project *Project) error
+	GetByID(ctx context.Context, id uint) (*Project, error)
+	List(ctx context.Context, ownerID uuid.UUID) ([]Project, error)
+	Update(ctx context.Context, project *Project) error
+	Delete(ctx context.Context, id uint) error
 }
 
 type repository struct {
@@ -21,27 +22,37 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) Create(project *Project) error {
+func (r *repository) Create(ctx context.Context, project *Project) error {
 	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Create(project).Error
 }
 
-func (r *repository) GetByID(id uint) (*Project, error) {
-	// TODO: Implement
-	return nil, nil
-}
-
-func (r *repository) List(ownerID uuid.UUID) ([]Project, error) {
+func (r *repository) GetByID(ctx context.Context, id uint) (*Project, error) {
 	// TODO: Implement
 	return nil, nil
 }
 
-func (r *repository) Update(project *Project) error {
+func (r *repository) List(ctx context.Context, userID uuid.UUID) ([]Project, error) {
+	var projects []Project
+	result := r.db.WithContext(ctx).
+		Joins("LEFT JOIN project_participants ON project_participants.project_id = projects.id").
+		Where("project_participants.user_id = ? OR projects.owner_id = ?", userID, userID).
+		Distinct().
+		Find(&projects)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return projects, nil
+}
+
+func (r *repository) Update(ctx context.Context, project *Project) error {
 	// TODO: Implement
 	return nil
 }
 
-func (r *repository) Delete(id uint) error {
+func (r *repository) Delete(ctx context.Context, id uint) error {
 	// TODO: Implement
 	return nil
 }

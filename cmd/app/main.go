@@ -76,18 +76,22 @@ func main() {
 	// Initialize repositories
 	userRepo := user.NewRepository(database)
 	authRepo := auth.NewRepository(database)
+	projectRepo := project.NewRepository(database)
 
 	// Initialize services
 	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	projectService := project.NewService(projectRepo)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
 	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	projectHandler := project.NewHandler(projectService)
 
 	h := api.Handlers{
-		AuthHdl: authHandler,
-		UserHdl: userHandler,
+		AuthHdl:    authHandler,
+		UserHdl:    userHandler,
+		ProjectHdl: projectHandler,
 	}
 
 	// Setup router

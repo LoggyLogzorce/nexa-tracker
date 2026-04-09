@@ -1,7 +1,10 @@
 package project
 
 import (
+	"github.com/google/uuid"
 	"net/http"
+	"nexa-task-tracker/internal/middleware"
+	"nexa-task-tracker/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,8 +38,19 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	// TODO: List projects
-	c.JSON(http.StatusOK, gin.H{"message": "list projects endpoint"})
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	projects, err := h.service.List(c.Request.Context(), userID.(uuid.UUID))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get projects")
+		return
+	}
+
+	response.Success(c, http.StatusOK, projects)
 }
 
 func (h *Handler) Update(c *gin.Context) {
