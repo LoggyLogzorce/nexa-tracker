@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"nexa-task-tracker/internal/pkg/response"
 )
 
 type Handler struct {
@@ -24,21 +26,94 @@ type UpdateRoleRequest struct {
 }
 
 func (h *Handler) AddParticipant(c *gin.Context) {
-	// TODO: Implement
-	c.JSON(http.StatusOK, gin.H{"message": "add participant endpoint"})
+	idStr := c.Param("project_id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	var req AddParticipantRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	userID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid user id")
+		return
+	}
+
+	participant := &ProjectParticipant{
+		ProjectID: projectID,
+		UserID:    userID,
+		Role:      req.Role,
+	}
+
+	if err := h.service.AddParticipant(participant); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to add participant")
+		return
+	}
+
+	response.Success(c, http.StatusCreated, participant)
 }
 
 func (h *Handler) GetByProjectID(c *gin.Context) {
-	// TODO: Implement
-	c.JSON(http.StatusOK, gin.H{"message": "get participants by project endpoint"})
+	idStr := c.Param("project_id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	participants, err := h.service.GetByProjectID(projectID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get participants")
+		return
+	}
+
+	response.Success(c, http.StatusOK, participants)
 }
 
 func (h *Handler) UpdateRole(c *gin.Context) {
-	// TODO: Implement
-	c.JSON(http.StatusOK, gin.H{"message": "update participant role endpoint"})
+	idStr := c.Param("project_id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	userID := c.Param("user_id")
+
+	var req UpdateRoleRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := h.service.UpdateRole(projectID, userID, req.Role); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to update role")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "role updated successfully"})
 }
 
 func (h *Handler) RemoveParticipant(c *gin.Context) {
-	// TODO: Implement
-	c.JSON(http.StatusOK, gin.H{"message": "remove participant endpoint"})
+	idStr := c.Param("project_id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	userID := c.Param("user_id")
+
+	if err := h.service.RemoveParticipant(projectID, userID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to remove participant")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "participant removed successfully"})
 }

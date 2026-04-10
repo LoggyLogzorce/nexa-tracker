@@ -16,7 +16,7 @@ type Task struct {
 	Description *string    `gorm:"type:text" json:"description"`
 	Deadline    *time.Time `json:"deadline"`
 
-	ProjectID  uint       `gorm:"not null" json:"project_id"`
+	ProjectID  uuid.UUID  `gorm:"type:uuid;not null" json:"project_id"`
 	StatusID   *uint      `json:"status_id"`
 	PriorityID *uint      `json:"priority_id"`
 	AssigneeID *uuid.UUID `gorm:"type:uuid" json:"assignee_id"`

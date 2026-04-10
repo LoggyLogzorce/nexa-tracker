@@ -1,12 +1,15 @@
 package status
 
-import "gorm.io/gorm"
+import (
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+)
 
 type Repository interface {
 	Create(status *Status) error
 	CreateBatch(statuses []Status) error
 	GetByID(id uint) (*Status, error)
-	GetByProjectID(projectID uint) ([]Status, error)
+	GetByProjectID(projectID uuid.UUID) ([]Status, error)
 	Update(status *Status) error
 	Delete(id uint) error
 }
@@ -33,7 +36,7 @@ func (r *repository) GetByID(id uint) (*Status, error) {
 	return nil, nil
 }
 
-func (r *repository) GetByProjectID(projectID uint) ([]Status, error) {
+func (r *repository) GetByProjectID(projectID uuid.UUID) ([]Status, error) {
 	// TODO: Implement
 	return nil, nil
 }

@@ -8,10 +8,10 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, project *Project) error
-	GetByID(ctx context.Context, id uint) (*Project, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*Project, error)
 	List(ctx context.Context, ownerID uuid.UUID) ([]Project, error)
 	Update(ctx context.Context, project *Project) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type repository struct {
@@ -26,9 +26,15 @@ func (r *repository) Create(ctx context.Context, project *Project) error {
 	return r.db.WithContext(ctx).Create(project).Error
 }
 
-func (r *repository) GetByID(ctx context.Context, id uint) (*Project, error) {
-	// TODO: Implement
-	return nil, nil
+func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*Project, error) {
+	var project Project
+	result := r.db.WithContext(ctx).Where("id = ?", id).First(&project)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+
+	return &project, nil
 }
 
 func (r *repository) List(ctx context.Context, userID uuid.UUID) ([]Project, error) {
@@ -51,7 +57,7 @@ func (r *repository) Update(ctx context.Context, project *Project) error {
 	return nil
 }
 
-func (r *repository) Delete(ctx context.Context, id uint) error {
+func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
 	// TODO: Implement
 	return nil
 }

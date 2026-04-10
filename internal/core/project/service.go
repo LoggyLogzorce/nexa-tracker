@@ -2,7 +2,10 @@ package project
 
 import (
 	"context"
+	"errors"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/status"
 	"time"
@@ -10,23 +13,25 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, project *Project, ownerID uuid.UUID) error
-	GetByID(ctx context.Context, id uint) (*Project, error)
+	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*Project, error)
 	List(ctx context.Context, userID uuid.UUID) ([]Project, error)
 	Update(ctx context.Context, project *Project) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type service struct {
-	repo         Repository
-	statusRepo   status.Repository
-	priorityRepo priority.Repository
+	repo            Repository
+	statusRepo      status.Repository
+	priorityRepo    priority.Repository
+	participantRepo participant.Repository
 }
 
-func NewService(repo Repository, statusRepo status.Repository, priorityRepo priority.Repository) Service {
+func NewService(repo Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
 	return &service{
-		repo:         repo,
-		statusRepo:   statusRepo,
-		priorityRepo: priorityRepo,
+		repo:            repo,
+		statusRepo:      statusRepo,
+		priorityRepo:    priorityRepo,
+		participantRepo: participantRepo,
 	}
 }
 
@@ -34,7 +39,8 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 1. Установить ownerID
+	// 1. Установить id и owner
+	project.ID = uuid.New()
 	project.OwnerID = ownerID
 
 	// 2. Создать проект
@@ -66,9 +72,38 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	return nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*Project, error) {
-	// TODO: Implement
-	return nil, nil
+func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*Project, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Получить проект из БД
+	project, err := s.repo.GetByID(ctxT, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrProjectNotFound
+		}
+		return nil, err
+	}
+
+	// 2. Проверить права доступа
+	if project.OwnerID == userID {
+		// Пользователь - owner, доступ разрешен
+		return project, nil
+	}
+
+	// Проверить, является ли пользователь участником проекта
+	_, err = s.participantRepo.GetByProjectAndUser(id, userID.String())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// Пользователь не является ни owner'ом, ни участником
+			return nil, ErrProjectAccessDenied
+		}
+		// Другая ошибка БД
+		return nil, err
+	}
+
+	// Пользователь является участником, доступ разрешен
+	return project, nil
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID) ([]Project, error) {
@@ -88,7 +123,7 @@ func (s *service) Update(ctx context.Context, project *Project) error {
 	return nil
 }
 
-func (s *service) Delete(ctx context.Context, id uint) error {
+func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
 	// TODO: Implement
 	return nil
 }

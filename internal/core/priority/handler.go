@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"nexa-task-tracker/internal/pkg/response"
 )
 
 type Handler struct {
@@ -30,8 +32,20 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) GetByProjectID(c *gin.Context) {
-	// TODO: Implement
-	c.JSON(http.StatusOK, gin.H{"message": "get priorities by project endpoint"})
+	idStr := c.Param("project_id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	priorities, err := h.service.GetByProjectID(projectID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get priorities")
+		return
+	}
+
+	response.Success(c, http.StatusOK, priorities)
 }
 
 func (h *Handler) Update(c *gin.Context) {

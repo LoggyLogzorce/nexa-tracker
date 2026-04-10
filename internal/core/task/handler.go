@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -15,13 +16,13 @@ func NewHandler(service Service) *Handler {
 }
 
 type CreateTaskRequest struct {
-	Title       string  `json:"title" binding:"required,min=1,max=100"`
-	Description *string `json:"description"`
-	ProjectID   uint    `json:"project_id" binding:"required"`
-	StatusID    *uint   `json:"status_id"`
-	PriorityID  *uint   `json:"priority_id"`
-	AssigneeID  *string `json:"assignee_id" binding:"omitempty,uuid"`
-	Deadline    *string `json:"deadline" binding:"omitempty"`
+	Title       string    `json:"title" binding:"required,min=1,max=100"`
+	Description *string   `json:"description"`
+	ProjectID   uuid.UUID `json:"project_id" binding:"required"`
+	StatusID    *uint     `json:"status_id"`
+	PriorityID  *uint     `json:"priority_id"`
+	AssigneeID  *string   `json:"assignee_id" binding:"omitempty,uuid"`
+	Deadline    *string   `json:"deadline" binding:"omitempty"`
 }
 
 type UpdateTaskRequest struct {

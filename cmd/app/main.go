@@ -79,11 +79,12 @@ func main() {
 	projectRepo := project.NewRepository(database)
 	statusRepo := status.NewRepository(database)
 	priorityRepo := priority.NewRepository(database)
+	participantRepo := participant.NewRepository(database)
 
 	// Initialize services
 	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
-	projectService := project.NewService(projectRepo, statusRepo, priorityRepo)
+	projectService := project.NewService(projectRepo, statusRepo, priorityRepo, participantRepo)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)

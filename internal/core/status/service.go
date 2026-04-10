@@ -1,9 +1,11 @@
 package status
 
+import "github.com/google/uuid"
+
 type Service interface {
 	Create(status *Status) error
 	GetByID(id uint) (*Status, error)
-	GetByProjectID(projectID uint) ([]Status, error)
+	GetByProjectID(projectID uuid.UUID) ([]Status, error)
 	Update(status *Status) error
 	Delete(id uint) error
 }
@@ -26,7 +28,7 @@ func (s *service) GetByID(id uint) (*Status, error) {
 	return nil, nil
 }
 
-func (s *service) GetByProjectID(projectID uint) ([]Status, error) {
+func (s *service) GetByProjectID(projectID uuid.UUID) ([]Status, error) {
 	// TODO: Implement
 	return nil, nil
 }

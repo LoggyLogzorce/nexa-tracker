@@ -1,6 +1,7 @@
 package project
 
 import (
+	"errors"
 	"github.com/google/uuid"
 	"net/http"
 	"nexa-task-tracker/internal/middleware"
@@ -59,8 +60,40 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) GetByID(c *gin.Context) {
-	// TODO: Get project by ID
-	c.JSON(http.StatusOK, gin.H{"message": "get project endpoint"})
+	// 1. Парсинг project ID из URL
+	idStr := c.Param("id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	// 2. Получить userID из контекста (установлен middleware.Auth)
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// 3. Вызвать сервис с проверкой прав
+	project, err := h.service.GetByID(c.Request.Context(), projectID, userID.(uuid.UUID))
+	if err != nil {
+		// Обработка специфичных ошибок
+		if errors.Is(err, ErrProjectNotFound) {
+			response.Error(c, http.StatusNotFound, "project not found")
+			return
+		}
+		if errors.Is(err, ErrProjectAccessDenied) {
+			response.Error(c, http.StatusForbidden, "access denied")
+			return
+		}
+		// Общая ошибка
+		response.Error(c, http.StatusInternalServerError, "failed to get project")
+		return
+	}
+
+	// 4. Вернуть проект
+	response.Success(c, http.StatusOK, project)
 }
 
 func (h *Handler) List(c *gin.Context) {
@@ -80,11 +113,45 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	// TODO: Update project
-	c.JSON(http.StatusOK, gin.H{"message": "update project endpoint"})
+	idStr := c.Param("id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	var req UpdateProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	project := &Project{
+		ID:          projectID,
+		Title:       req.Title,
+		Description: req.Description,
+	}
+
+	if err := h.service.Update(c.Request.Context(), project); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to update project")
+		return
+	}
+
+	response.Success(c, http.StatusOK, project)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	// TODO: Delete project
-	c.JSON(http.StatusOK, gin.H{"message": "delete project endpoint"})
+	idStr := c.Param("id")
+	projectID, err := uuid.Parse(idStr)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), projectID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to delete project")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "project deleted successfully"})
 }

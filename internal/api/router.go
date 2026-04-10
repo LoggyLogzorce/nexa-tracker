@@ -76,7 +76,7 @@ func (r *Router) Setup() *gin.Engine {
 			{
 				projects.GET("", r.handlers.ProjectHdl.List)
 				projects.POST("", r.handlers.ProjectHdl.Create)
-				projects.GET("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get project"}) })
+				projects.GET("/:id", r.handlers.ProjectHdl.GetByID)
 				projects.PUT("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update project"}) })
 				projects.DELETE("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
 

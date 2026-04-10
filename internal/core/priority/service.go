@@ -1,9 +1,11 @@
 package priority
 
+import "github.com/google/uuid"
+
 type Service interface {
 	Create(priority *Priority) error
 	GetByID(id uint) (*Priority, error)
-	GetByProjectID(projectID uint) ([]Priority, error)
+	GetByProjectID(projectID uuid.UUID) ([]Priority, error)
 	Update(priority *Priority) error
 	Delete(id uint) error
 }
@@ -26,7 +28,7 @@ func (s *service) GetByID(id uint) (*Priority, error) {
 	return nil, nil
 }
 
-func (s *service) GetByProjectID(projectID uint) ([]Priority, error) {
+func (s *service) GetByProjectID(projectID uuid.UUID) ([]Priority, error) {
 	// TODO: Implement
 	return nil, nil
 }

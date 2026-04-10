@@ -7,7 +7,7 @@ import (
 )
 
 type Project struct {
-	ID        uint      `gorm:"primaryKey" json:"id"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey;" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 
 	Title       string    `gorm:"not null;size:50" json:"title"`

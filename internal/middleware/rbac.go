@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 func RequireRole(roles ...string) gin.HandlerFunc {
@@ -28,6 +29,14 @@ func RequireProjectAccess(requiredRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// TODO: Implement project-level RBAC
 		// 1. Get project_id from URL params
+		projectIDStr := c.Param("project_id")
+		_, err := uuid.Parse(projectIDStr)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "invalid project id"})
+			c.Abort()
+			return
+		}
+
 		// 2. Get user_id from context
 		// 3. Check if user has required role in project (via participant service)
 		// 4. Call c.Next() or c.Abort()
