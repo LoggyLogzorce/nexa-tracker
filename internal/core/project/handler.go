@@ -113,6 +113,7 @@ func (h *Handler) List(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
+	// 1. Парсинг project ID из URL
 	idStr := c.Param("id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
@@ -120,23 +121,44 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
+	// 2. Получить userID из контекста
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// 3. Парсинг и валидация запроса
 	var req UpdateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
+	// 4. Создать модель проекта для обновления
 	project := &Project{
 		ID:          projectID,
 		Title:       req.Title,
 		Description: req.Description,
 	}
 
-	if err := h.service.Update(c.Request.Context(), project); err != nil {
+	// 5. Вызвать сервис с проверкой прав
+	if err := h.service.Update(c.Request.Context(), project, userID.(uuid.UUID)); err != nil {
+		// Обработка специфичных ошибок
+		if errors.Is(err, ErrProjectNotFound) {
+			response.Error(c, http.StatusNotFound, "project not found")
+			return
+		}
+		if errors.Is(err, ErrProjectAccessDenied) {
+			response.Error(c, http.StatusForbidden, "access denied")
+			return
+		}
+		// Общая ошибка
 		response.Error(c, http.StatusInternalServerError, "failed to update project")
 		return
 	}
 
+	// 6. Вернуть обновленный проект
 	response.Success(c, http.StatusOK, project)
 }
 
@@ -148,7 +170,13 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.Delete(c.Request.Context(), projectID); err != nil {
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	if err := h.service.Delete(c.Request.Context(), projectID, userID.(uuid.UUID)); err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to delete project")
 		return
 	}

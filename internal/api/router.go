@@ -3,15 +3,19 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
+	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/middleware"
 )
 
 type Handlers struct {
-	AuthHdl    *auth.Handler
-	UserHdl    *user.Handler
-	ProjectHdl *project.Handler
+	AuthHdl     *auth.Handler
+	UserHdl     *user.Handler
+	ProjectHdl  *project.Handler
+	StatusHdl   *status.Handler
+	PriorityHdl *priority.Handler
 }
 
 type Router struct {
@@ -77,8 +81,8 @@ func (r *Router) Setup() *gin.Engine {
 				projects.GET("", r.handlers.ProjectHdl.List)
 				projects.POST("", r.handlers.ProjectHdl.Create)
 				projects.GET("/:id", r.handlers.ProjectHdl.GetByID)
-				projects.PUT("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update project"}) })
-				projects.DELETE("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete project"}) })
+				projects.PUT("/:id", r.handlers.ProjectHdl.Update)
+				projects.DELETE("/:id", r.handlers.ProjectHdl.Delete)
 
 				// Project participants
 				projects.GET("/:id/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get participants"}) })

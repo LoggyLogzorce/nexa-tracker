@@ -6,8 +6,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/participant"
-	"nexa-task-tracker/internal/core/priority"
-	"nexa-task-tracker/internal/core/status"
+	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
@@ -15,23 +14,21 @@ type Service interface {
 	Create(ctx context.Context, project *Project, ownerID uuid.UUID) error
 	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*Project, error)
 	List(ctx context.Context, userID uuid.UUID) ([]Project, error)
-	Update(ctx context.Context, project *Project) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Update(ctx context.Context, project *Project, userID uuid.UUID) error
+	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 type service struct {
 	repo            Repository
-	statusRepo      status.Repository
-	priorityRepo    priority.Repository
 	participantRepo participant.Repository
+	eventBus        *events.EventBus
 }
 
-func NewService(repo Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
+func NewService(repo Repository, eventBus *events.EventBus, participantRepo participant.Repository) Service {
 	return &service{
 		repo:            repo,
-		statusRepo:      statusRepo,
-		priorityRepo:    priorityRepo,
 		participantRepo: participantRepo,
+		eventBus:        eventBus,
 	}
 }
 
@@ -49,25 +46,31 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	}
 
 	// 3. Создать дефолтные статусы
-	defaultStatuses := []status.Status{
-		{ProjectID: project.ID, Name: "To Do", Color: "#808080", OrderIndex: 0},
-		{ProjectID: project.ID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
-		{ProjectID: project.ID, Name: "Done", Color: "#22c55e", OrderIndex: 2},
-	}
+	//defaultStatuses := []status.Status{
+	//	{ProjectID: project.ID, Name: "To Do", Color: "#808080", OrderIndex: 0},
+	//	{ProjectID: project.ID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
+	//	{ProjectID: project.ID, Name: "Done", Color: "#22c55e", OrderIndex: 2},
+	//}
+	//
+	//defaultPriorities := []priority.Priority{
+	//	{ProjectID: project.ID, Title: "Low", Color: "#22c55e"},    // зелёный
+	//	{ProjectID: project.ID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
+	//	{ProjectID: project.ID, Title: "High", Color: "#ef4444"},   // красный
+	//}
+	//
+	//if err := s.statusRepo.CreateBatch(defaultStatuses); err != nil {
+	//	return err
+	//}
+	//
+	//if err := s.priorityRepo.CreateBatch(defaultPriorities); err != nil {
+	//	return err
+	//}
 
-	defaultPriorities := []priority.Priority{
-		{ProjectID: project.ID, Title: "Low", Color: "#22c55e"},    // зелёный
-		{ProjectID: project.ID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
-		{ProjectID: project.ID, Title: "High", Color: "#ef4444"},   // красный
+	event := ProjectEvent{
+		Type:      events.ProjectCreated,
+		ProjectID: project.ID,
 	}
-
-	if err := s.statusRepo.CreateBatch(defaultStatuses); err != nil {
-		return err
-	}
-
-	if err := s.priorityRepo.CreateBatch(defaultPriorities); err != nil {
-		return err
-	}
+	s.eventBus.Publish(event.ToEvent())
 
 	return nil
 }
@@ -118,12 +121,76 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]Project, error)
 	return projects, nil
 }
 
-func (s *service) Update(ctx context.Context, project *Project) error {
-	// TODO: Implement
+func (s *service) Update(ctx context.Context, project *Project, userID uuid.UUID) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Получить проект из БД
+	existingProject, err := s.repo.GetByID(ctxT, project.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return err
+	}
+
+	// 2. Проверить права доступа - только owner может обновлять проект
+	if existingProject.OwnerID != userID {
+		return ErrProjectAccessDenied
+	}
+
+	if project.Title == "" {
+		project.Title = existingProject.Title
+	}
+
+	if project.Description == nil {
+		project.Description = existingProject.Description
+	}
+
+	project.ID = existingProject.ID
+	project.OwnerID = existingProject.OwnerID
+	project.CreatedAt = existingProject.CreatedAt
+
+	// 3. Обновить проект
+	if err := s.repo.Update(ctxT, existingProject); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return err
+	}
+
 	return nil
 }
 
-func (s *service) Delete(ctx context.Context, id uuid.UUID) error {
-	// TODO: Implement
+func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Получить проект из БД
+	existingProject, err := s.repo.GetByID(ctxT, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrProjectNotFound
+		}
+		return err
+	}
+
+	// 2. Проверить права доступа - только owner может удалять проект
+	if existingProject.OwnerID != userID {
+		return ErrProjectAccessDenied
+	}
+
+	// 3. Удалить проект (каскадное удаление сработает автоматически)
+	if err := s.repo.Delete(ctxT, id); err != nil {
+		return err
+	}
+
+	// 4. Опубликовать событие ProjectDeleted
+	event := ProjectEvent{
+		Type:      events.ProjectDeleted,
+		ProjectID: id,
+	}
+	s.eventBus.Publish(event.ToEvent())
+
 	return nil
 }

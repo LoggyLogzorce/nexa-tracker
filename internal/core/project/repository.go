@@ -53,11 +53,9 @@ func (r *repository) List(ctx context.Context, userID uuid.UUID) ([]Project, err
 }
 
 func (r *repository) Update(ctx context.Context, project *Project) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Save(project).Error
 }
 
 func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Delete(&Project{}, "id = ?", id).Error
 }

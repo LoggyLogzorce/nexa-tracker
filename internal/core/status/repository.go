@@ -12,6 +12,7 @@ type Repository interface {
 	GetByProjectID(projectID uuid.UUID) ([]Status, error)
 	Update(status *Status) error
 	Delete(id uint) error
+	DeleteByProjectID(projectID uuid.UUID) error
 }
 
 type repository struct {
@@ -49,4 +50,8 @@ func (r *repository) Update(status *Status) error {
 func (r *repository) Delete(id uint) error {
 	// TODO: Implement
 	return nil
+}
+
+func (r *repository) DeleteByProjectID(projectID uuid.UUID) error {
+	return r.db.Where("project_id = ?", projectID).Delete(&Status{}).Error
 }

@@ -10,7 +10,9 @@ import (
 type EventType string
 
 const (
-	UserDeleted EventType = "user.deleted"
+	UserDeleted    EventType = "user.deleted"
+	ProjectDeleted EventType = "project.deleted"
+	ProjectCreated EventType = "project.created"
 )
 
 // Event представляет событие в системе

@@ -2,6 +2,7 @@ package priority
 
 import (
 	"net/http"
+	"nexa-task-tracker/internal/pkg/events"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -12,7 +13,9 @@ type Handler struct {
 	service Service
 }
 
-func NewHandler(service Service) *Handler {
+func NewHandler(service Service, eventBus *events.EventBus) *Handler {
+	eventBus.Subscribe(events.ProjectDeleted, service.HandleProjectDeleted)
+	eventBus.Subscribe(events.ProjectCreated, service.HandleProjectCreated)
 	return &Handler{service: service}
 }
 
