@@ -50,9 +50,9 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	}
 
 	defaultPriorities := []priority.Priority{
-		{ProjectID: project.ID, Title: "Low", Color: "#808080"},
-		{ProjectID: project.ID, Title: "Medium", Color: "#3b82f6"},
-		{ProjectID: project.ID, Title: "High", Color: "#22c55e"},
+		{ProjectID: project.ID, Title: "Low", Color: "#22c55e"},    // зелёный
+		{ProjectID: project.ID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
+		{ProjectID: project.ID, Title: "High", Color: "#ef4444"},   // красный
 	}
 
 	if err := s.statusRepo.CreateBatch(defaultStatuses); err != nil {
