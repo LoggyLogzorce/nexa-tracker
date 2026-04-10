@@ -25,8 +25,7 @@ func (r *repository) Create(status *Status) error {
 }
 
 func (r *repository) CreateBatch(statuses []Status) error {
-	// TODO: Implement
-	return nil
+	return r.db.Create(&statuses).Error
 }
 
 func (r *repository) GetByID(id uint) (*Status, error) {

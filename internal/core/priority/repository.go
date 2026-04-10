@@ -4,6 +4,7 @@ import "gorm.io/gorm"
 
 type Repository interface {
 	Create(priority *Priority) error
+	CreateBatch(priorities []Priority) error
 	GetByID(id uint) (*Priority, error)
 	GetByProjectID(projectID uint) ([]Priority, error)
 	Update(priority *Priority) error
@@ -21,6 +22,10 @@ func NewRepository(db *gorm.DB) Repository {
 func (r *repository) Create(priority *Priority) error {
 	// TODO: Implement
 	return nil
+}
+
+func (r *repository) CreateBatch(priorities []Priority) error {
+	return r.db.Create(&priorities).Error
 }
 
 func (r *repository) GetByID(id uint) (*Priority, error) {

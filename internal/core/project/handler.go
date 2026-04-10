@@ -28,8 +28,34 @@ type UpdateProjectRequest struct {
 }
 
 func (h *Handler) Create(c *gin.Context) {
-	// TODO: Implement project creation
-	c.JSON(http.StatusOK, gin.H{"message": "create project endpoint"})
+	// 1. Получить userID из контекста (аутентификация)
+	userID, exists := c.Get(middleware.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	// 2. Парсинг и валидация запроса
+	var req CreateProjectRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.Error(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// 3. Создать модель проекта
+	project := &Project{
+		Title:       req.Title,
+		Description: req.Description,
+	}
+
+	// 4. Вызвать сервис
+	if err := h.service.Create(c.Request.Context(), project, userID.(uuid.UUID)); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to create project")
+		return
+	}
+
+	// 5. Вернуть созданный проект
+	response.Success(c, http.StatusCreated, project)
 }
 
 func (h *Handler) GetByID(c *gin.Context) {

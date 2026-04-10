@@ -23,7 +23,6 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(ctx context.Context, project *Project) error {
-	// TODO: Implement
 	return r.db.WithContext(ctx).Create(project).Error
 }
 

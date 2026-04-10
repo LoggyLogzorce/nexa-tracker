@@ -3,6 +3,8 @@ package project
 import (
 	"context"
 	"github.com/google/uuid"
+	"nexa-task-tracker/internal/core/priority"
+	"nexa-task-tracker/internal/core/status"
 	"time"
 )
 
@@ -15,19 +17,52 @@ type Service interface {
 }
 
 type service struct {
-	repo            Repository
-	statusRepo      interface{} // TODO: Add status repository
-	participantRepo interface{} // TODO: Add participant repository
+	repo         Repository
+	statusRepo   status.Repository
+	priorityRepo priority.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, statusRepo status.Repository, priorityRepo priority.Repository) Service {
+	return &service{
+		repo:         repo,
+		statusRepo:   statusRepo,
+		priorityRepo: priorityRepo,
+	}
 }
 
 func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUID) error {
-	// TODO: Implement
-	// 1. Create project
-	// 2. Create default statuses (Todo, In Progress, Done)
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Установить ownerID
+	project.OwnerID = ownerID
+
+	// 2. Создать проект
+	if err := s.repo.Create(ctxT, project); err != nil {
+		return err
+	}
+
+	// 3. Создать дефолтные статусы
+	defaultStatuses := []status.Status{
+		{ProjectID: project.ID, Name: "To Do", Color: "#808080", OrderIndex: 0},
+		{ProjectID: project.ID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
+		{ProjectID: project.ID, Name: "Done", Color: "#22c55e", OrderIndex: 2},
+	}
+
+	defaultPriorities := []priority.Priority{
+		{ProjectID: project.ID, Title: "Low", Color: "#808080"},
+		{ProjectID: project.ID, Title: "Medium", Color: "#3b82f6"},
+		{ProjectID: project.ID, Title: "High", Color: "#22c55e"},
+	}
+
+	if err := s.statusRepo.CreateBatch(defaultStatuses); err != nil {
+		return err
+	}
+
+	if err := s.priorityRepo.CreateBatch(defaultPriorities); err != nil {
+		return err
+	}
+
 	return nil
 }
 
