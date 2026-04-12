@@ -14,6 +14,10 @@ type Repository interface {
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
 	GetMaxOrderIndex(ctx context.Context, projectID uuid.UUID) (int, error)
 	Update(ctx context.Context, status *Status) error
+	UpdateOrderIndexBatch(ctx context.Context, updates []struct {
+		ID         uint
+		OrderIndex int
+	}) error
 	Delete(ctx context.Context, id uint) error
 	DeleteByProjectID(ctx context.Context, projectID uuid.UUID) error
 }
@@ -35,8 +39,12 @@ func (r *repository) CreateBatch(ctx context.Context, statuses []Status) error {
 }
 
 func (r *repository) GetByID(ctx context.Context, id uint) (*Status, error) {
-	// TODO: Implement
-	return nil, nil
+	var status Status
+	result := r.db.WithContext(ctx).First(&status, id)
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return &status, nil
 }
 
 func (r *repository) GetByName(ctx context.Context, name string) (*Status, error) {
@@ -67,13 +75,25 @@ func (r *repository) GetMaxOrderIndex(ctx context.Context, projectID uuid.UUID) 
 }
 
 func (r *repository) Update(ctx context.Context, status *Status) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Save(status).Error
+}
+
+func (r *repository) UpdateOrderIndexBatch(ctx context.Context, updates []struct {
+	ID         uint
+	OrderIndex int
+}) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, update := range updates {
+			if err := tx.Model(&Status{}).Where("id = ?", update.ID).Update("order_index", update.OrderIndex).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (r *repository) Delete(ctx context.Context, id uint) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&Status{}).Error
 }
 
 func (r *repository) DeleteByProjectID(ctx context.Context, projectID uuid.UUID) error {

@@ -102,7 +102,7 @@ func (r *Router) Setup() *gin.Engine {
 				{
 					projectMember.POST("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
 					projectMember.POST("/statuses", r.handlers.StatusHdl.Create)
-					projectMember.PUT("/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update status"}) })
+					projectMember.PUT("/statuses/:status_id", r.handlers.StatusHdl.Update)
 					projectMember.POST("/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create priority"}) })
 					projectMember.PUT("/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update priority"}) })
 				}
@@ -115,7 +115,7 @@ func (r *Router) Setup() *gin.Engine {
 					projectOwner.DELETE("", r.handlers.ProjectHdl.Delete)
 					projectOwner.PUT("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update participant"}) })
 					projectOwner.DELETE("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "remove participant"}) })
-					projectOwner.DELETE("/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete status"}) })
+					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete priority"}) })
 				}
 			}

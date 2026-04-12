@@ -7,4 +7,6 @@ var (
 	ErrProjectAccessDenied = errors.New("access to project denied")
 	ErrStatusNameExists    = errors.New("status with this name already exists")
 	ErrDuplicateOrderIndex = errors.New("status with this order_index already exists")
+	ErrColorFormat         = errors.New("invalid color format")
+	ErrStatusNotFound      = errors.New("status not found")
 )
