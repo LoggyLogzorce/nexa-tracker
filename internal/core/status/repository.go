@@ -10,7 +10,9 @@ type Repository interface {
 	Create(ctx context.Context, status *Status) error
 	CreateBatch(ctx context.Context, statuses []Status) error
 	GetByID(ctx context.Context, id uint) (*Status, error)
+	GetByName(ctx context.Context, name string) (*Status, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
+	GetMaxOrderIndex(ctx context.Context, projectID uuid.UUID) (int, error)
 	Update(ctx context.Context, status *Status) error
 	Delete(ctx context.Context, id uint) error
 	DeleteByProjectID(ctx context.Context, projectID uuid.UUID) error
@@ -25,8 +27,7 @@ func NewRepository(db *gorm.DB) Repository {
 }
 
 func (r *repository) Create(ctx context.Context, status *Status) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Create(status).Error
 }
 
 func (r *repository) CreateBatch(ctx context.Context, statuses []Status) error {
@@ -38,6 +39,12 @@ func (r *repository) GetByID(ctx context.Context, id uint) (*Status, error) {
 	return nil, nil
 }
 
+func (r *repository) GetByName(ctx context.Context, name string) (*Status, error) {
+	var status *Status
+	err := r.db.WithContext(ctx).Where("name = ?", name).First(&status).Error
+	return status, err
+}
+
 func (r *repository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error) {
 	var statuses []Status
 	result := r.db.WithContext(ctx).Where("project_id = ?", projectID).Order("order_index ASC").Find(&statuses)
@@ -45,6 +52,18 @@ func (r *repository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([
 		return nil, result.Error
 	}
 	return statuses, nil
+}
+
+func (r *repository) GetMaxOrderIndex(ctx context.Context, projectID uuid.UUID) (int, error) {
+	var maxIndex int
+	result := r.db.WithContext(ctx).Model(&Status{}).
+		Where("project_id = ?", projectID).
+		Select("COALESCE(MAX(order_index), -1)").
+		Scan(&maxIndex)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return maxIndex, nil
 }
 
 func (r *repository) Update(ctx context.Context, status *Status) error {

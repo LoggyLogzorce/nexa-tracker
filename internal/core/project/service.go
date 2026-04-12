@@ -67,24 +67,6 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (
 		return nil, err
 	}
 
-	//// 2. Проверить права доступа
-	//if project.OwnerID == userID {
-	//	// Пользователь - owner, доступ разрешен
-	//	return project, nil
-	//}
-	//
-	//// Проверить, является ли пользователь участником проекта
-	//_, err = s.participantRepo.GetByProjectAndUser(id, userID.String())
-	//if err != nil {
-	//	if errors.Is(err, gorm.ErrRecordNotFound) {
-	//		// Пользователь не является ни owner'ом, ни участником
-	//		return nil, ErrProjectAccessDenied
-	//	}
-	//	// Другая ошибка БД
-	//	return nil, err
-	//}
-
-	// Пользователь является участником, доступ разрешен
 	return project, nil
 }
 
@@ -113,11 +95,6 @@ func (s *service) Update(ctx context.Context, project *Project, userID uuid.UUID
 		return err
 	}
 
-	//// 2. Проверить права доступа - только owner может обновлять проект
-	//if existingProject.OwnerID != userID {
-	//	return ErrProjectAccessDenied
-	//}
-
 	if project.Title == "" {
 		project.Title = existingProject.Title
 	}
@@ -130,7 +107,7 @@ func (s *service) Update(ctx context.Context, project *Project, userID uuid.UUID
 	project.OwnerID = existingProject.OwnerID
 	project.CreatedAt = existingProject.CreatedAt
 
-	// 3. Обновить проект
+	// 2. Обновить проект
 	if err := s.repo.Update(ctxT, existingProject); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrProjectNotFound
@@ -145,26 +122,12 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	//// 1. Получить проект из БД
-	//existingProject, err := s.repo.GetByID(ctxT, id)
-	//if err != nil {
-	//	if errors.Is(err, gorm.ErrRecordNotFound) {
-	//		return ErrProjectNotFound
-	//	}
-	//	return err
-	//}
-	//
-	//// 2. Проверить права доступа - только owner может удалять проект
-	//if existingProject.OwnerID != userID {
-	//	return ErrProjectAccessDenied
-	//}
-
-	// 3. Удалить проект
+	// 1. Удалить проект
 	if err := s.repo.Delete(ctxT, id); err != nil {
 		return err
 	}
 
-	// 4. Опубликовать событие ProjectDeleted
+	// 2. Опубликовать событие ProjectDeleted
 	event := ProjectEvent{
 		Type:      events.ProjectDeleted,
 		ProjectID: id,

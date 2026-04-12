@@ -101,7 +101,7 @@ func (r *Router) Setup() *gin.Engine {
 				projectMember.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "member"))
 				{
 					projectMember.POST("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
-					projectMember.POST("/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create status"}) })
+					projectMember.POST("/statuses", r.handlers.StatusHdl.Create)
 					projectMember.PUT("/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update status"}) })
 					projectMember.POST("/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create priority"}) })
 					projectMember.PUT("/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update priority"}) })

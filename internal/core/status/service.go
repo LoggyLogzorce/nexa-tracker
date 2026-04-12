@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/google/uuid"
-	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/pkg/events"
 	"time"
@@ -13,7 +12,7 @@ import (
 type Service interface {
 	Create(ctx context.Context, status *Status) error
 	GetByID(ctx context.Context, id uint) (*Status, error)
-	GetByProjectID(ctx context.Context, projectID uuid.UUID, userID uuid.UUID) ([]Status, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
 	Update(ctx context.Context, status *Status) error
 	Delete(ctx context.Context, id uint) error
 	HandleProjectDeleted(event events.Event) error
@@ -21,21 +20,60 @@ type Service interface {
 }
 
 type service struct {
-	repo            Repository
-	projectRepo     project.Repository
-	participantRepo participant.Repository
+	repo Repository
 }
 
-func NewService(repo Repository, projectRepo project.Repository, participantRepo participant.Repository) Service {
+func NewService(repo Repository) Service {
 	return &service{
-		repo:            repo,
-		projectRepo:     projectRepo,
-		participantRepo: participantRepo,
+		repo: repo,
 	}
 }
 
 func (s *service) Create(ctx context.Context, status *Status) error {
-	// TODO: Implement
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// 1. Проверка уникальности названия
+	_, err := s.repo.GetByName(ctxT, status.Name)
+	if err == nil {
+		return ErrStatusNameExists
+	}
+
+	// 2. Валидация color (если указан)
+	if status.Color != "" {
+		if err := ValidateHexColor(status.Color); err != nil {
+			return err
+		}
+	} else {
+		// Установить дефолтное значение
+		status.Color = "#cccccc"
+	}
+
+	// 3. Если order_index не указан (равен 0), установить в конец
+	if status.OrderIndex == 0 {
+		maxIndex, err := s.repo.GetMaxOrderIndex(ctxT, status.ProjectID)
+		if err != nil {
+			return err
+		}
+		status.OrderIndex = maxIndex + 1
+	} else {
+		// Проверить, что статус с таким order_index не существует
+		existingStatuses, err := s.repo.GetByProjectID(ctxT, status.ProjectID)
+		if err != nil {
+			return err
+		}
+		for _, existing := range existingStatuses {
+			if existing.OrderIndex == status.OrderIndex {
+				return ErrDuplicateOrderIndex
+			}
+		}
+	}
+
+	// 4. Создать статус
+	if err := s.repo.Create(ctxT, status); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -44,32 +82,11 @@ func (s *service) GetByID(ctx context.Context, id uint) (*Status, error) {
 	return nil, nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, userID uuid.UUID) ([]Status, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	//// 1. Проверить существование проекта
-	//proj, err := s.projectRepo.GetByID(ctxT, projectID)
-	//if err != nil {
-	//	if errors.Is(err, gorm.ErrRecordNotFound) {
-	//		return nil, ErrProjectNotFound
-	//	}
-	//	return nil, err
-	//}
-	//
-	//// 2. Проверить права доступа
-	//if proj.OwnerID != userID {
-	//	// Проверить, является ли пользователь участником
-	//	_, err = s.participantRepo.GetByProjectAndUser(projectID, userID.String())
-	//	if err != nil {
-	//		if errors.Is(err, gorm.ErrRecordNotFound) {
-	//			return nil, ErrProjectAccessDenied
-	//		}
-	//		return nil, err
-	//	}
-	//}
-
-	// 3. Получить статусы проекта
+	// 1. Получить статусы проекта
 	statuses, err := s.repo.GetByProjectID(ctxT, projectID)
 	if err != nil {
 		return nil, err
