@@ -2,16 +2,11 @@ package middleware
 
 import (
 	"net/http"
+	"nexa-task-tracker/internal/ctxkeys"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"nexa-task-tracker/internal/pkg/jwt"
-)
-
-const (
-	UserIDKey    = "user_id"
-	UserEmailKey = "user_email"
-	UserRoleKey  = "user_role"
 )
 
 func Auth(jwtSecret string) gin.HandlerFunc {
@@ -41,9 +36,9 @@ func Auth(jwtSecret string) gin.HandlerFunc {
 		}
 
 		// 4. Set user info in context
-		c.Set(UserIDKey, claims.UserID)
-		c.Set(UserEmailKey, claims.Email)
-		c.Set(UserRoleKey, claims.Role)
+		c.Set(ctxkeys.UserIDKey, claims.UserID)
+		c.Set(ctxkeys.UserEmailKey, claims.Email)
+		c.Set(ctxkeys.UserRoleKey, claims.Role)
 
 		c.Next()
 	}
@@ -76,9 +71,9 @@ func OptionalAuth(jwtSecret string) gin.HandlerFunc {
 		}
 
 		// Set user info in context if token is valid
-		c.Set(UserIDKey, claims.UserID)
-		c.Set(UserEmailKey, claims.Email)
-		c.Set(UserRoleKey, claims.Role)
+		c.Set(ctxkeys.UserIDKey, claims.UserID)
+		c.Set(ctxkeys.UserEmailKey, claims.Email)
+		c.Set(ctxkeys.UserRoleKey, claims.Role)
 
 		c.Next()
 	}

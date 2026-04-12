@@ -3,6 +3,7 @@ package api
 import (
 	"github.com/gin-gonic/gin"
 	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/core/status"
@@ -19,16 +20,20 @@ type Handlers struct {
 }
 
 type Router struct {
-	handlers  Handlers
-	engine    *gin.Engine
-	jwtSecret string
+	handlers        Handlers
+	engine          *gin.Engine
+	jwtSecret       string
+	projectRepo     project.Repository
+	participantRepo participant.Repository
 }
 
-func NewRouter(h Handlers, jwtSecret string) *Router {
+func NewRouter(h Handlers, jwtSecret string, projectRepo project.Repository, participantRepo participant.Repository) *Router {
 	return &Router{
-		handlers:  h,
-		engine:    gin.Default(),
-		jwtSecret: jwtSecret,
+		handlers:        h,
+		engine:          gin.Default(),
+		jwtSecret:       jwtSecret,
+		projectRepo:     projectRepo,
+		participantRepo: participantRepo,
 	}
 }
 
@@ -80,27 +85,39 @@ func (r *Router) Setup() *gin.Engine {
 			{
 				projects.GET("", r.handlers.ProjectHdl.List)
 				projects.POST("", r.handlers.ProjectHdl.Create)
-				projects.GET("/:id", r.handlers.ProjectHdl.GetByID)
-				projects.PUT("/:id", r.handlers.ProjectHdl.Update)
-				projects.DELETE("/:id", r.handlers.ProjectHdl.Delete)
 
-				// Project participants
-				projects.GET("/:id/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get participants"}) })
-				projects.POST("/:id/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
-				projects.PUT("/:id/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update participant"}) })
-				projects.DELETE("/:id/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "remove participant"}) })
+				// Routes requiring project access - read operations (read_only+)
+				projectAccess := projects.Group("/:id")
+				projectAccess.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "read_only"))
+				{
+					projectAccess.GET("", r.handlers.ProjectHdl.GetByID)
+					projectAccess.GET("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get participants"}) })
+					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
+					projectAccess.GET("/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get priorities"}) })
+				}
 
-				// Project statuses
-				projects.GET("/:id/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get statuses"}) })
-				projects.POST("/:id/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create status"}) })
-				projects.PUT("/:id/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update status"}) })
-				projects.DELETE("/:id/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete status"}) })
+				// Write operations requiring member role
+				projectMember := projects.Group("/:id")
+				projectMember.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "member"))
+				{
+					projectMember.POST("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
+					projectMember.POST("/statuses", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create status"}) })
+					projectMember.PUT("/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update status"}) })
+					projectMember.POST("/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create priority"}) })
+					projectMember.PUT("/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update priority"}) })
+				}
 
-				// Project priorities
-				projects.GET("/:id/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get priorities"}) })
-				projects.POST("/:id/priorities", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create priority"}) })
-				projects.PUT("/:id/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update priority"}) })
-				projects.DELETE("/:id/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete priority"}) })
+				// Owner-only operations
+				projectOwner := projects.Group("/:id")
+				projectOwner.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "owner"))
+				{
+					projectOwner.PUT("", r.handlers.ProjectHdl.Update)
+					projectOwner.DELETE("", r.handlers.ProjectHdl.Delete)
+					projectOwner.PUT("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update participant"}) })
+					projectOwner.DELETE("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "remove participant"}) })
+					projectOwner.DELETE("/statuses/:status_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete status"}) })
+					projectOwner.DELETE("/priorities/:priority_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete priority"}) })
+				}
 			}
 
 			// Task routes
@@ -127,7 +144,6 @@ func (r *Router) Setup() *gin.Engine {
 				tasks.GET("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "download attachment"}) })
 				tasks.DELETE("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete attachment"}) })
 			}
-
 		}
 	}
 

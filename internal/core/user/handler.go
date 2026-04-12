@@ -3,6 +3,7 @@ package user
 import (
 	"errors"
 	"net/http"
+	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/pkg/response"
 	"regexp"
 	"strings"
@@ -10,7 +11,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"nexa-task-tracker/internal/middleware"
 )
 
 type Handler struct {
@@ -32,7 +32,7 @@ type DeleteUserRequest struct {
 
 func (h *Handler) GetMe(c *gin.Context) {
 	// Get user_id from context (set by Auth middleware)
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -57,7 +57,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 
 func (h *Handler) UpdateMe(c *gin.Context) {
 	// 1. Получить user_id из контекста
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -137,7 +137,7 @@ func validateName(name string) bool {
 
 func (h *Handler) DeleteMe(c *gin.Context) {
 	// 1. Получить user_id из контекста
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return

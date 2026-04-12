@@ -45,27 +45,6 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 		return err
 	}
 
-	// 3. Создать дефолтные статусы
-	//defaultStatuses := []status.Status{
-	//	{ProjectID: project.ID, Name: "To Do", Color: "#808080", OrderIndex: 0},
-	//	{ProjectID: project.ID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
-	//	{ProjectID: project.ID, Name: "Done", Color: "#22c55e", OrderIndex: 2},
-	//}
-	//
-	//defaultPriorities := []priority.Priority{
-	//	{ProjectID: project.ID, Title: "Low", Color: "#22c55e"},    // зелёный
-	//	{ProjectID: project.ID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
-	//	{ProjectID: project.ID, Title: "High", Color: "#ef4444"},   // красный
-	//}
-	//
-	//if err := s.statusRepo.CreateBatch(defaultStatuses); err != nil {
-	//	return err
-	//}
-	//
-	//if err := s.priorityRepo.CreateBatch(defaultPriorities); err != nil {
-	//	return err
-	//}
-
 	event := ProjectEvent{
 		Type:      events.ProjectCreated,
 		ProjectID: project.ID,
@@ -88,22 +67,22 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (
 		return nil, err
 	}
 
-	// 2. Проверить права доступа
-	if project.OwnerID == userID {
-		// Пользователь - owner, доступ разрешен
-		return project, nil
-	}
-
-	// Проверить, является ли пользователь участником проекта
-	_, err = s.participantRepo.GetByProjectAndUser(id, userID.String())
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			// Пользователь не является ни owner'ом, ни участником
-			return nil, ErrProjectAccessDenied
-		}
-		// Другая ошибка БД
-		return nil, err
-	}
+	//// 2. Проверить права доступа
+	//if project.OwnerID == userID {
+	//	// Пользователь - owner, доступ разрешен
+	//	return project, nil
+	//}
+	//
+	//// Проверить, является ли пользователь участником проекта
+	//_, err = s.participantRepo.GetByProjectAndUser(id, userID.String())
+	//if err != nil {
+	//	if errors.Is(err, gorm.ErrRecordNotFound) {
+	//		// Пользователь не является ни owner'ом, ни участником
+	//		return nil, ErrProjectAccessDenied
+	//	}
+	//	// Другая ошибка БД
+	//	return nil, err
+	//}
 
 	// Пользователь является участником, доступ разрешен
 	return project, nil
@@ -134,10 +113,10 @@ func (s *service) Update(ctx context.Context, project *Project, userID uuid.UUID
 		return err
 	}
 
-	// 2. Проверить права доступа - только owner может обновлять проект
-	if existingProject.OwnerID != userID {
-		return ErrProjectAccessDenied
-	}
+	//// 2. Проверить права доступа - только owner может обновлять проект
+	//if existingProject.OwnerID != userID {
+	//	return ErrProjectAccessDenied
+	//}
 
 	if project.Title == "" {
 		project.Title = existingProject.Title
@@ -166,21 +145,21 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// 1. Получить проект из БД
-	existingProject, err := s.repo.GetByID(ctxT, id)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return ErrProjectNotFound
-		}
-		return err
-	}
+	//// 1. Получить проект из БД
+	//existingProject, err := s.repo.GetByID(ctxT, id)
+	//if err != nil {
+	//	if errors.Is(err, gorm.ErrRecordNotFound) {
+	//		return ErrProjectNotFound
+	//	}
+	//	return err
+	//}
+	//
+	//// 2. Проверить права доступа - только owner может удалять проект
+	//if existingProject.OwnerID != userID {
+	//	return ErrProjectAccessDenied
+	//}
 
-	// 2. Проверить права доступа - только owner может удалять проект
-	if existingProject.OwnerID != userID {
-		return ErrProjectAccessDenied
-	}
-
-	// 3. Удалить проект (каскадное удаление сработает автоматически)
+	// 3. Удалить проект
 	if err := s.repo.Delete(ctxT, id); err != nil {
 		return err
 	}

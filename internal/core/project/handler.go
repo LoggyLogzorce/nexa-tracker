@@ -4,7 +4,7 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"net/http"
-	"nexa-task-tracker/internal/middleware"
+	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -30,7 +30,7 @@ type UpdateProjectRequest struct {
 
 func (h *Handler) Create(c *gin.Context) {
 	// 1. Получить userID из контекста (аутентификация)
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -69,7 +69,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 	}
 
 	// 2. Получить userID из контекста (установлен middleware.Auth)
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -97,7 +97,7 @@ func (h *Handler) GetByID(c *gin.Context) {
 }
 
 func (h *Handler) List(c *gin.Context) {
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -122,7 +122,7 @@ func (h *Handler) Update(c *gin.Context) {
 	}
 
 	// 2. Получить userID из контекста
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return
@@ -170,7 +170,7 @@ func (h *Handler) Delete(c *gin.Context) {
 		return
 	}
 
-	userID, exists := c.Get(middleware.UserIDKey)
+	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {
 		response.Error(c, http.StatusUnauthorized, "user not authenticated")
 		return

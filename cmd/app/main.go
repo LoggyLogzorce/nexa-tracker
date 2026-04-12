@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"log"
-	"nexa-task-tracker/internal/modules/notify"
 	"os"
 	_ "os"
 	"os/signal"
@@ -85,7 +84,7 @@ func main() {
 	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 	projectService := project.NewService(projectRepo, eventBus, participantRepo)
-	statusService := status.NewService(statusRepo)
+	statusService := status.NewService(statusRepo, projectRepo, participantRepo)
 	priorityService := priority.NewService(priorityRepo)
 
 	// Initialize handlers
@@ -104,13 +103,13 @@ func main() {
 	}
 
 	// Setup router
-	router := api.NewRouter(h, cfg.JWT.Secret)
+	router := api.NewRouter(h, cfg.JWT.Secret, projectRepo, participantRepo)
 	engine := router.Setup()
 
 	// Setup modules
-	if cfg.Modules.Notify {
-		notify.Init(database, eventBus, engine, cfg.JWT.Secret)
-	}
+	//if cfg.Modules.Notify {
+	//	notify.Init(database, eventBus, engine, cfg.JWT.Secret)
+	//}
 
 	// Start server
 	go func() {
