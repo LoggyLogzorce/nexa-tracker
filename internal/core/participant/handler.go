@@ -84,7 +84,7 @@ func (h *Handler) GetByProjectID(c *gin.Context) {
 }
 
 func (h *Handler) UpdateRole(c *gin.Context) {
-	idStr := c.Param("project_id")
+	idStr := c.Param("id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid project id")
@@ -92,23 +92,40 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 	}
 
 	userID := c.Param("user_id")
+	userIdUUID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
 
 	var req UpdateRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 
-	if err := h.service.UpdateRole(c.Request.Context(), projectID, userID, req.Role); err != nil {
-		response.Error(c, http.StatusInternalServerError, "failed to update role")
+	participant := &ProjectParticipant{
+		ProjectID: projectID,
+		UserID:    userIdUUID,
+		Role:      req.Role,
+	}
+
+	if err := h.service.UpdateRole(c.Request.Context(), participant); err != nil {
+		switch {
+		case errors.Is(err, ErrParticipantNotFound):
+			response.Error(c, http.StatusNotFound, "participant not found")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to update role")
+		}
 		return
 	}
 
-	response.Success(c, http.StatusOK, gin.H{"message": "role updated successfully"})
+	response.Success(c, http.StatusOK, participant)
 }
 
 func (h *Handler) RemoveParticipant(c *gin.Context) {
-	idStr := c.Param("project_id")
+	idStr := c.Param("id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid project id")
@@ -116,9 +133,24 @@ func (h *Handler) RemoveParticipant(c *gin.Context) {
 	}
 
 	userID := c.Param("user_id")
+	userIdUUID, err := uuid.Parse(userID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
 
-	if err := h.service.RemoveParticipant(c.Request.Context(), projectID, userID); err != nil {
-		response.Error(c, http.StatusInternalServerError, "failed to remove participant")
+	participant := &ProjectParticipant{
+		ProjectID: projectID,
+		UserID:    userIdUUID,
+	}
+
+	if err := h.service.RemoveParticipant(c.Request.Context(), participant); err != nil {
+		switch {
+		case errors.Is(err, ErrParticipantNotFound):
+			response.Error(c, http.StatusNotFound, "participant not found")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to remove participant")
+		}
 		return
 	}
 

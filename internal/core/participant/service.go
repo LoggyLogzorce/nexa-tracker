@@ -12,8 +12,8 @@ type Service interface {
 	AddParticipant(ctx context.Context, participant *ProjectParticipant) error
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipant, error)
 	GetByUserID(ctx context.Context, userID string) ([]ProjectParticipant, error)
-	UpdateRole(ctx context.Context, projectID uuid.UUID, userID string, role string) error
-	RemoveParticipant(ctx context.Context, projectID uuid.UUID, userID string) error
+	UpdateRole(ctx context.Context, participant *ProjectParticipant) error
+	RemoveParticipant(ctx context.Context, participant *ProjectParticipant) error
 	CheckAccess(ctx context.Context, projectID uuid.UUID, userID string, requiredRole string) (bool, error)
 }
 
@@ -56,14 +56,34 @@ func (s *service) GetByUserID(ctx context.Context, userID string) ([]ProjectPart
 	return nil, nil
 }
 
-func (s *service) UpdateRole(ctx context.Context, projectID uuid.UUID, userID string, role string) error {
-	// TODO: Implement
-	return nil
+func (s *service) UpdateRole(ctx context.Context, participant *ProjectParticipant) error {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	_, err := s.repo.GetByProjectAndUser(ctxT, participant.ProjectID, participant.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrParticipantNotFound
+		}
+		return err
+	}
+
+	return s.repo.Update(ctxT, participant)
 }
 
-func (s *service) RemoveParticipant(ctx context.Context, projectID uuid.UUID, userID string) error {
-	// TODO: Implement
-	return nil
+func (s *service) RemoveParticipant(ctx context.Context, participant *ProjectParticipant) error {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	_, err := s.repo.GetByProjectAndUser(ctxT, participant.ProjectID, participant.UserID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrParticipantNotFound
+		}
+		return err
+	}
+
+	return s.repo.Delete(ctxT, participant)
 }
 
 func (s *service) CheckAccess(ctx context.Context, projectID uuid.UUID, userID string, requiredRole string) (bool, error) {

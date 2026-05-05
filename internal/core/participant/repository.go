@@ -12,7 +12,7 @@ type Repository interface {
 	GetByUserID(ctx context.Context, userID uuid.UUID) ([]ProjectParticipant, error)
 	GetByProjectAndUser(ctx context.Context, projectID uuid.UUID, userID uuid.UUID) (*ProjectParticipant, error)
 	Update(ctx context.Context, participant *ProjectParticipant) error
-	Delete(ctx context.Context, projectID uuid.UUID, userID string) error
+	Delete(ctx context.Context, participant *ProjectParticipant) error
 }
 
 type repository struct {
@@ -50,11 +50,10 @@ func (r *repository) GetByProjectAndUser(ctx context.Context, projectID uuid.UUI
 }
 
 func (r *repository) Update(ctx context.Context, participant *ProjectParticipant) error {
-	// TODO: Implement
-	return nil
+	return r.db.WithContext(ctx).Save(participant).Error
 }
 
-func (r *repository) Delete(ctx context.Context, projectID uuid.UUID, userID string) error {
-	// TODO: Implement
-	return nil
+func (r *repository) Delete(ctx context.Context, participant *ProjectParticipant) error {
+	return r.db.WithContext(ctx).Where("project_id = ? AND user_id = ?", participant.ProjectID, participant.UserID).
+		Delete(&ProjectParticipant{}).Error
 }

@@ -101,7 +101,6 @@ func (r *Router) Setup() *gin.Engine {
 				projectMember := projects.Group("/:id")
 				projectMember.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "member"))
 				{
-					projectMember.POST("/participants", r.handlers.ParticipantHdl.AddParticipant)
 					projectMember.POST("/statuses", r.handlers.StatusHdl.Create)
 					projectMember.PUT("/statuses/:status_id", r.handlers.StatusHdl.Update)
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)
@@ -114,8 +113,9 @@ func (r *Router) Setup() *gin.Engine {
 				{
 					projectOwner.PUT("", r.handlers.ProjectHdl.Update)
 					projectOwner.DELETE("", r.handlers.ProjectHdl.Delete)
-					projectOwner.PUT("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update participant"}) })
-					projectOwner.DELETE("/participants/:user_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "remove participant"}) })
+					projectMember.POST("/participants", r.handlers.ParticipantHdl.AddParticipant)
+					projectOwner.PUT("/participants/:user_id", r.handlers.ParticipantHdl.UpdateRole)
+					projectOwner.DELETE("/participants/:user_id", r.handlers.ParticipantHdl.RemoveParticipant)
 					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", r.handlers.PriorityHdl.Delete)
 				}
