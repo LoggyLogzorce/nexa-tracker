@@ -1,11 +1,12 @@
 package participant
 
 import (
-	"net/http"
-
+	"errors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"net/http"
 	"nexa-task-tracker/internal/pkg/response"
+	"nexa-task-tracker/internal/pkg/validation"
 )
 
 type Handler struct {
@@ -26,7 +27,7 @@ type UpdateRoleRequest struct {
 }
 
 func (h *Handler) AddParticipant(c *gin.Context) {
-	idStr := c.Param("project_id")
+	idStr := c.Param("id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid project id")
@@ -35,7 +36,8 @@ func (h *Handler) AddParticipant(c *gin.Context) {
 
 	var req AddParticipantRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 
@@ -51,8 +53,13 @@ func (h *Handler) AddParticipant(c *gin.Context) {
 		Role:      req.Role,
 	}
 
-	if err := h.service.AddParticipant(participant); err != nil {
-		response.Error(c, http.StatusInternalServerError, "failed to add participant")
+	if err := h.service.AddParticipant(c.Request.Context(), participant); err != nil {
+		switch {
+		case errors.Is(err, ErrParticipantIDExists):
+			response.Error(c, http.StatusConflict, "participant with this id already exists")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to add participant")
+		}
 		return
 	}
 
@@ -60,14 +67,14 @@ func (h *Handler) AddParticipant(c *gin.Context) {
 }
 
 func (h *Handler) GetByProjectID(c *gin.Context) {
-	idStr := c.Param("project_id")
+	idStr := c.Param("id")
 	projectID, err := uuid.Parse(idStr)
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, "invalid project id")
 		return
 	}
 
-	participants, err := h.service.GetByProjectID(projectID)
+	participants, err := h.service.GetByProjectID(c.Request.Context(), projectID)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to get participants")
 		return
@@ -92,7 +99,7 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.UpdateRole(projectID, userID, req.Role); err != nil {
+	if err := h.service.UpdateRole(c.Request.Context(), projectID, userID, req.Role); err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to update role")
 		return
 	}
@@ -110,7 +117,7 @@ func (h *Handler) RemoveParticipant(c *gin.Context) {
 
 	userID := c.Param("user_id")
 
-	if err := h.service.RemoveParticipant(projectID, userID); err != nil {
+	if err := h.service.RemoveParticipant(c.Request.Context(), projectID, userID); err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to remove participant")
 		return
 	}

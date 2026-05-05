@@ -82,7 +82,7 @@ func RequireProjectAccess(projectRepo project.Repository, participantRepo partic
 			userRole = "owner"
 		} else {
 			// 5. Check if user is participant
-			participant, err := participantRepo.GetByProjectAndUser(projectID, userID.String())
+			participant, err := participantRepo.GetByProjectAndUser(c.Request.Context(), projectID, userID)
 			if err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					c.JSON(http.StatusForbidden, gin.H{"error": "access denied"})

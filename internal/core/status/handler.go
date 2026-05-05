@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/response"
+	"nexa-task-tracker/internal/pkg/validation"
 	"strconv"
 	"strings"
 )
@@ -155,7 +156,7 @@ func (h *Handler) Update(c *gin.Context) {
 			return
 		}
 		// Проверка на ошибку валидации hex-цвета
-		if errors.Is(err, ErrColorFormat) {
+		if errors.Is(err, validation.ErrColorFormat) {
 			response.Error(c, http.StatusBadRequest, err.Error())
 			return
 		}

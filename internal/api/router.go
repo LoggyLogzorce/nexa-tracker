@@ -12,11 +12,12 @@ import (
 )
 
 type Handlers struct {
-	AuthHdl     *auth.Handler
-	UserHdl     *user.Handler
-	ProjectHdl  *project.Handler
-	StatusHdl   *status.Handler
-	PriorityHdl *priority.Handler
+	AuthHdl        *auth.Handler
+	UserHdl        *user.Handler
+	ProjectHdl     *project.Handler
+	StatusHdl      *status.Handler
+	PriorityHdl    *priority.Handler
+	ParticipantHdl *participant.Handler
 }
 
 type Router struct {
@@ -91,7 +92,7 @@ func (r *Router) Setup() *gin.Engine {
 				projectAccess.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "read_only"))
 				{
 					projectAccess.GET("", r.handlers.ProjectHdl.GetByID)
-					projectAccess.GET("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get participants"}) })
+					projectAccess.GET("/participants", r.handlers.ParticipantHdl.GetByProjectID)
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
 				}
@@ -100,7 +101,7 @@ func (r *Router) Setup() *gin.Engine {
 				projectMember := projects.Group("/:id")
 				projectMember.Use(middleware.RequireProjectAccess(r.projectRepo, r.participantRepo, "member"))
 				{
-					projectMember.POST("/participants", func(c *gin.Context) { c.JSON(200, gin.H{"message": "add participant"}) })
+					projectMember.POST("/participants", r.handlers.ParticipantHdl.AddParticipant)
 					projectMember.POST("/statuses", r.handlers.StatusHdl.Create)
 					projectMember.PUT("/statuses/:status_id", r.handlers.StatusHdl.Update)
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)

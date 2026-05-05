@@ -86,6 +86,7 @@ func main() {
 	projectService := project.NewService(projectRepo, eventBus, participantRepo)
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
+	participantService := participant.NewService(participantRepo)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
@@ -93,13 +94,15 @@ func main() {
 	projectHandler := project.NewHandler(projectService)
 	statusHandler := status.NewHandler(statusService, eventBus)
 	priorityHandler := priority.NewHandler(priorityService, eventBus)
+	participantHandler := participant.NewHandler(participantService)
 
 	h := api.Handlers{
-		AuthHdl:     authHandler,
-		UserHdl:     userHandler,
-		ProjectHdl:  projectHandler,
-		StatusHdl:   statusHandler,
-		PriorityHdl: priorityHandler,
+		AuthHdl:        authHandler,
+		UserHdl:        userHandler,
+		ProjectHdl:     projectHandler,
+		StatusHdl:      statusHandler,
+		PriorityHdl:    priorityHandler,
+		ParticipantHdl: participantHandler,
 	}
 
 	// Setup router

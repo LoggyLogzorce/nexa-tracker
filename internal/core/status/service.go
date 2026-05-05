@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/pkg/events"
+	"nexa-task-tracker/internal/pkg/validation"
 	"time"
 )
 
@@ -38,12 +39,12 @@ func (s *service) Create(ctx context.Context, status *Status) error {
 	// 1. Проверка уникальности названия
 	_, err := s.repo.GetByName(ctxT, status.Name)
 	if err == nil {
-		return ErrStatusNameExists
+		return ErrStatusNameExists // TODO проверить на наличие других ошибок в этом блоке
 	}
 
 	// 2. Валидация color (если указан)
 	if status.Color != "" {
-		if err := ValidateHexColor(status.Color); err != nil {
+		if err := validation.ValidateHexColor(status.Color); err != nil {
 			return err
 		}
 	} else {
@@ -132,7 +133,7 @@ func (s *service) Update(ctx context.Context, id uint, projectID uuid.UUID, upda
 
 	// 4. Обработать обновление color (если указано)
 	if updates.Color != nil {
-		if err := ValidateHexColor(*updates.Color); err != nil {
+		if err := validation.ValidateHexColor(*updates.Color); err != nil {
 			return nil, err
 		}
 		status.Color = *updates.Color
