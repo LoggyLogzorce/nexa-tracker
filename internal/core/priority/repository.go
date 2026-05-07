@@ -12,6 +12,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id uint) (*Priority, error)
 	GetByTitle(ctx context.Context, title string, projectID uuid.UUID) (*Priority, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Priority, error)
+	GetListByIDs(ctx context.Context, ids []uint) ([]Priority, error)
 	Update(ctx context.Context, priority *Priority) error
 	Delete(ctx context.Context, id uint) error
 	DeleteByProjectID(ctx context.Context, projectID uuid.UUID) error
@@ -58,6 +59,12 @@ func (r *repository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([
 		return nil, result.Error
 	}
 	return priorities, nil
+}
+
+func (r *repository) GetListByIDs(ctx context.Context, ids []uint) ([]Priority, error) {
+	var priorities []Priority
+	err := r.db.WithContext(ctx).Where("id IN (?)", ids).Find(&priorities).Error
+	return priorities, err
 }
 
 func (r *repository) Update(ctx context.Context, priority *Priority) error {

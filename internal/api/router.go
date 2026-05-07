@@ -7,6 +7,7 @@ import (
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/core/status"
+	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/middleware"
 )
@@ -18,6 +19,7 @@ type Handlers struct {
 	StatusHdl      *status.Handler
 	PriorityHdl    *priority.Handler
 	ParticipantHdl *participant.Handler
+	TaskHdl        *task.Handler
 }
 
 type Router struct {
@@ -95,6 +97,8 @@ func (r *Router) Setup() *gin.Engine {
 					projectAccess.GET("/participants", r.handlers.ParticipantHdl.GetByProjectID)
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
+					projectAccess.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
+					projectAccess.GET("tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task"}) })
 				}
 
 				// Write operations requiring member role
@@ -105,6 +109,9 @@ func (r *Router) Setup() *gin.Engine {
 					projectMember.PUT("/statuses/:status_id", r.handlers.StatusHdl.Update)
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)
 					projectMember.PUT("/priorities/:priority_id", r.handlers.PriorityHdl.Update)
+					projectMember.POST("/tasks", r.handlers.TaskHdl.Create)
+					projectMember.PUT("/tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update task"}) })
+					projectMember.DELETE("/tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete task"}) })
 				}
 
 				// Owner-only operations
@@ -124,12 +131,6 @@ func (r *Router) Setup() *gin.Engine {
 			// Task routes
 			tasks := protected.Group("/tasks")
 			{
-				tasks.GET("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "list tasks"}) })
-				tasks.POST("", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create task"}) })
-				tasks.GET("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task"}) })
-				tasks.PUT("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update task"}) })
-				tasks.DELETE("/:id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete task"}) })
-
 				// Task history
 				tasks.GET("/:id/history", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task history"}) })
 
