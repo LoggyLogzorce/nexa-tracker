@@ -86,7 +86,7 @@ func main() {
 	projectService := project.NewService(projectRepo, eventBus, userRepo, statusRepo, priorityRepo)
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
-	participantService := participant.NewService(participantRepo)
+	participantService := participant.NewService(participantRepo, userRepo)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)

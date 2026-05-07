@@ -5,12 +5,13 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"nexa-task-tracker/internal/core/user"
 	"time"
 )
 
 type Service interface {
 	AddParticipant(ctx context.Context, participant *ProjectParticipant) error
-	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipant, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipantsResponse, error)
 	GetByUserID(ctx context.Context, userID string) ([]ProjectParticipant, error)
 	UpdateRole(ctx context.Context, participant *ProjectParticipant) error
 	RemoveParticipant(ctx context.Context, participant *ProjectParticipant) error
@@ -18,11 +19,15 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo     Repository
+	userRepo user.Repository
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
+func NewService(repo Repository, userRepo user.Repository) Service {
+	return &service{
+		repo:     repo,
+		userRepo: userRepo,
+	}
 }
 
 func (s *service) AddParticipant(ctx context.Context, participant *ProjectParticipant) error {
@@ -44,11 +49,45 @@ func (s *service) AddParticipant(ctx context.Context, participant *ProjectPartic
 	return nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipant, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipantsResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	return s.repo.GetByProjectID(ctxT, projectID)
+	participants, err := s.repo.GetByProjectID(ctxT, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	participantsResponse := make([]ProjectParticipantsResponse, len(participants))
+	userIds := make([]uuid.UUID, len(participants))
+	for e, v := range participants {
+		participantsResponse[e] = ProjectParticipantsResponse{
+			ProjectID: v.ProjectID,
+			Role:      v.Role,
+			User: struct {
+				UserID uuid.UUID `json:"user_id"`
+				Name   string    `json:"name"`
+				Email  string    `json:"email"`
+			}{UserID: v.UserID, Name: "", Email: ""},
+		}
+		userIds[e] = v.UserID
+	}
+
+	users, err := s.userRepo.GetListByIDs(ctxT, userIds)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range participantsResponse {
+		for _, u := range users {
+			if participantsResponse[i].User.UserID == u.ID {
+				participantsResponse[i].User.Name = u.Name
+				participantsResponse[i].User.Email = u.Email
+			}
+		}
+	}
+
+	return participantsResponse, nil
 }
 
 func (s *service) GetByUserID(ctx context.Context, userID string) ([]ProjectParticipant, error) {

@@ -1,6 +1,7 @@
 package user
 
 import (
+	"context"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -9,6 +10,7 @@ type Repository interface {
 	Create(user *User) error
 	GetByID(id uuid.UUID) (*User, error)
 	GetByEmail(email string) (*User, error)
+	GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
 	Update(user *User) error
 	Delete(id uuid.UUID) error
 	UserOwnsProjects(userID uuid.UUID) (bool, error)
@@ -42,6 +44,12 @@ func (r *repository) GetByEmail(email string) (*User, error) {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *repository) GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error
+	return users, err
 }
 
 func (r *repository) Update(user *User) error {

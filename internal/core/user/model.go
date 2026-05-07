@@ -4,14 +4,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type User struct {
-	ID        uuid.UUID      `gorm:"type:uuid;primaryKey" json:"id"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 
 	Email        string  `gorm:"uniqueIndex;not null;size:255" json:"email"`
 	PasswordHash string  `gorm:"not null;size:255" json:"-"`
