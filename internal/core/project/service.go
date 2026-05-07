@@ -5,30 +5,36 @@ import (
 	"errors"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"nexa-task-tracker/internal/core/participant"
+	"nexa-task-tracker/internal/core/priority"
+	"nexa-task-tracker/internal/core/status"
+	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
 type Service interface {
 	Create(ctx context.Context, project *Project, ownerID uuid.UUID) error
-	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*Project, error)
+	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error)
 	List(ctx context.Context, userID uuid.UUID) ([]Project, error)
 	Update(ctx context.Context, project *Project, userID uuid.UUID) error
 	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
 type service struct {
-	repo            Repository
-	participantRepo participant.Repository
-	eventBus        *events.EventBus
+	repo         Repository
+	eventBus     *events.EventBus
+	userRepo     user.Repository
+	statusRepo   status.Repository
+	priorityRepo priority.Repository
 }
 
-func NewService(repo Repository, eventBus *events.EventBus, participantRepo participant.Repository) Service {
+func NewService(repo Repository, eventBus *events.EventBus, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository) Service {
 	return &service{
-		repo:            repo,
-		participantRepo: participantRepo,
-		eventBus:        eventBus,
+		repo:         repo,
+		eventBus:     eventBus,
+		userRepo:     userRepo,
+		statusRepo:   statusRepo,
+		priorityRepo: priorityRepo,
 	}
 }
 
@@ -45,7 +51,7 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 		return err
 	}
 
-	event := ProjectEvent{
+	event := events.ProjectEvent{
 		Type:      events.ProjectCreated,
 		ProjectID: project.ID,
 	}
@@ -54,7 +60,7 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	return nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*Project, error) {
+func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -67,7 +73,36 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (
 		return nil, err
 	}
 
-	return project, nil
+	projectDto := &ProjectResponse{
+		ID:          project.ID,
+		Title:       project.Title,
+		Description: project.Description,
+		CreatedAt:   project.CreatedAt,
+	}
+
+	owner, err := s.userRepo.GetByID(project.OwnerID)
+	if err != nil {
+		return projectDto, ErrGetOwner
+	}
+
+	projectDto.Owner.ID = owner.ID
+	projectDto.Owner.Name = owner.Name
+	projectDto.Owner.Email = owner.Email
+
+	statuses, err := s.statusRepo.GetByProjectID(ctxT, project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	priorities, err := s.priorityRepo.GetByProjectID(ctxT, project.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	projectDto.Statuses = statuses
+	projectDto.Priorities = priorities
+
+	return projectDto, nil
 }
 
 func (s *service) List(ctx context.Context, userID uuid.UUID) ([]Project, error) {
@@ -128,7 +163,7 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	}
 
 	// 2. Опубликовать событие ProjectDeleted
-	event := ProjectEvent{
+	event := events.ProjectEvent{
 		Type:      events.ProjectDeleted,
 		ProjectID: id,
 	}

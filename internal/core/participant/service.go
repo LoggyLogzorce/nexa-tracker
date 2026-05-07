@@ -90,3 +90,5 @@ func (s *service) CheckAccess(ctx context.Context, projectID uuid.UUID, userID s
 	// TODO: Implement role hierarchy check
 	return false, nil
 }
+
+// TODO удаление участников при удалении проекта

@@ -83,7 +83,7 @@ func main() {
 	// Initialize services
 	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
-	projectService := project.NewService(projectRepo, eventBus, participantRepo)
+	projectService := project.NewService(projectRepo, eventBus, userRepo, statusRepo, priorityRepo)
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
 	participantService := participant.NewService(participantRepo)

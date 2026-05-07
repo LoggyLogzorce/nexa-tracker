@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/validation"
 	"time"
@@ -271,7 +270,7 @@ func (s *service) Delete(ctx context.Context, id uint, projectID uuid.UUID) erro
 }
 
 func (s *service) HandleProjectDeleted(event events.Event) error {
-	data, ok := event.Data.(project.ProjectEvent)
+	data, ok := event.Data.(events.ProjectEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}
@@ -288,7 +287,7 @@ func (s *service) HandleProjectDeleted(event events.Event) error {
 }
 
 func (s *service) HandleProjectCreated(event events.Event) error {
-	data, ok := event.Data.(project.ProjectEvent)
+	data, ok := event.Data.(events.ProjectEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}

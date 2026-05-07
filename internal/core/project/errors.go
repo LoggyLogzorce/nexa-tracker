@@ -5,4 +5,5 @@ import "errors"
 var (
 	ErrProjectNotFound     = errors.New("project not found")
 	ErrProjectAccessDenied = errors.New("access to project denied")
+	ErrGetOwner            = errors.New("error getting owner")
 )
