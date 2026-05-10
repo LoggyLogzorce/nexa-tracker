@@ -15,8 +15,8 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, task *Task) (*TaskResponse, error)
-	GetByID(ctx context.Context, id uint) (*TaskResponse, error)
-	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]TaskResponse, error)
+	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error)
 	Update(ctx context.Context, task *Task) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -55,7 +55,9 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 		}
 	}
 
-	taskRes := &TaskResponse{}
+	taskRes := &TaskResponse{
+		IsArchive: false,
+	}
 
 	var st *status.Status
 	var err error
@@ -157,11 +159,16 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	return taskRes, nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*TaskResponse, error) {
+func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	task, err := s.repo.GetByID(ctxT, id)
+	archived := false
+	if param == "true" {
+		archived = true
+	}
+
+	task, err := s.repo.GetByID(ctxT, id, archived)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTaskNotFound
@@ -252,11 +259,16 @@ func (s *service) GetByID(ctx context.Context, id uint) (*TaskResponse, error) {
 	return taskRes, nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]TaskResponse, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	tasks, err := s.repo.GetByProjectID(ctxT, projectID)
+	archived := false
+	if param == "true" {
+		archived = true
+	}
+
+	tasks, err := s.repo.GetByProjectID(ctxT, projectID, archived)
 	if err != nil {
 		return nil, err
 	}
@@ -333,6 +345,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Ta
 			Title:       t.Title,
 			Description: t.Description,
 			ProjectID:   t.ProjectID,
+			IsArchive:   t.IsArchive,
 		}
 		if t.Deadline != nil {
 			formatted := t.Deadline.Format("2006-01-02")

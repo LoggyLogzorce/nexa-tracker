@@ -99,7 +99,9 @@ func (h *Handler) GetByID(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid task id")
 		return
 	}
-	task, err := h.service.GetByID(c.Request.Context(), uint(taskID))
+	archived := c.Query("archived")
+
+	task, err := h.service.GetByID(c.Request.Context(), uint(taskID), archived)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
@@ -124,8 +126,9 @@ func (h *Handler) GetByProjectID(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "invalid project id")
 		return
 	}
+	isArchive := c.Query("archived")
 
-	tasks, err := h.service.GetByProjectID(c.Request.Context(), projectID)
+	tasks, err := h.service.GetByProjectID(c.Request.Context(), projectID, isArchive)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrDataIntegrity):

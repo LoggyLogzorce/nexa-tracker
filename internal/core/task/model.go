@@ -21,6 +21,8 @@ type Task struct {
 	PriorityID *uint      `json:"priority_id"`
 	AssigneeID *uuid.UUID `gorm:"type:uuid" json:"assignee_id"`
 	ReporterID *uuid.UUID `gorm:"type:uuid" json:"reporter_id"`
+
+	IsArchive bool `gorm:"type:bool" json:"is_archive"`
 }
 
 type TaskResponse struct {
@@ -39,6 +41,8 @@ type TaskResponse struct {
 
 	Assignee *TaskUserResponse `json:"assignee"`
 	Reporter *TaskUserResponse `json:"reporter"`
+
+	IsArchive bool `json:"is_archive"`
 }
 
 // BeforeUpdate hook for logging changes to update_history

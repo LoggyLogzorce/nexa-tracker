@@ -9,8 +9,8 @@ import (
 
 type Repository interface {
 	Create(ctx context.Context, task *Task) error
-	GetByID(ctx context.Context, id uint) (*Task, error)
-	GetByProjectID(ctx context.Context, pID uuid.UUID) ([]Task, error)
+	GetByID(ctx context.Context, id uint, archived bool) (*Task, error)
+	GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error)
 	Update(ctx context.Context, task *Task) error
 	Delete(ctx context.Context, id uint) error
 }
@@ -30,15 +30,15 @@ func (r *repository) Create(ctx context.Context, task *Task) error {
 	return r.db.WithContext(ctx).Create(task).Error
 }
 
-func (r *repository) GetByID(ctx context.Context, id uint) (*Task, error) {
+func (r *repository) GetByID(ctx context.Context, id uint, archived bool) (*Task, error) {
 	var task Task
-	err := r.db.First(&task, id).Error
+	err := r.db.WithContext(ctx).Where("is_archive = ?", archived).First(&task, id).Error
 	return &task, err
 }
 
-func (r *repository) GetByProjectID(ctx context.Context, pID uuid.UUID) ([]Task, error) {
+func (r *repository) GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error) {
 	var tasks []Task
-	err := r.db.WithContext(ctx).Where("project_id = ?", pID).Find(&tasks).Error
+	err := r.db.WithContext(ctx).Where("project_id = ? AND is_archive = ?", pID, archived).Find(&tasks).Error
 	return tasks, err
 }
 
