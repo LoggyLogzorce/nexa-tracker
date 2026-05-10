@@ -183,6 +183,7 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 		Title:       task.Title,
 		Description: task.Description,
 		ProjectID:   task.ProjectID,
+		IsArchive:   task.IsArchive,
 	}
 
 	if task.Deadline != nil {
