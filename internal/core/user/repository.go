@@ -7,13 +7,13 @@ import (
 )
 
 type Repository interface {
-	Create(user *User) error
-	GetByID(id uuid.UUID) (*User, error)
-	GetByEmail(email string) (*User, error)
+	Create(ctx context.Context, user *User) error
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
-	Update(user *User) error
-	Delete(id uuid.UUID) error
-	UserOwnsProjects(userID uuid.UUID) (bool, error)
+	Update(ctx context.Context, user *User) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bool, error)
 }
 
 type repository struct {
@@ -24,22 +24,22 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) Create(user *User) error {
-	return r.db.Create(user).Error
+func (r *repository) Create(ctx context.Context, user *User) error {
+	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *repository) GetByID(id uuid.UUID) (*User, error) {
+func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	var user User
-	err := r.db.Where("id = ?", id).First(&user).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
 }
 
-func (r *repository) GetByEmail(email string) (*User, error) {
+func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error) {
 	var user User
-	err := r.db.Where("email = ?", email).First(&user).Error
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
 	}
@@ -52,17 +52,17 @@ func (r *repository) GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User,
 	return users, err
 }
 
-func (r *repository) Update(user *User) error {
-	return r.db.Save(user).Error
+func (r *repository) Update(ctx context.Context, user *User) error {
+	return r.db.WithContext(ctx).Save(user).Error
 }
 
-func (r *repository) Delete(id uuid.UUID) error {
-	return r.db.Where("id = ?", id).Delete(&User{}).Error
+func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&User{}).Error
 }
 
-func (r *repository) UserOwnsProjects(userID uuid.UUID) (bool, error) {
+func (r *repository) UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bool, error) {
 	var count int64
-	err := r.db.Table("projects").
+	err := r.db.WithContext(ctx).Table("projects").
 		Where("owner_id = ?", userID).
 		Count(&count).Error
 

@@ -39,7 +39,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// Get user from database
-	user, err := h.service.GetByID(userID.(uuid.UUID))
+	user, err := h.service.GetByID(c.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
 		// Handle user not found (deleted after token issued)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -64,7 +64,7 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 	}
 
 	// 2. Получить текущего пользователя из БД
-	user, err := h.service.GetByID(userID.(uuid.UUID))
+	user, err := h.service.GetByID(c.Request.Context(), userID.(uuid.UUID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			response.Error(c, http.StatusNotFound, "user not found")
@@ -105,7 +105,7 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 
 		if newEmail != currentEmail {
 			// Проверить уникальность email
-			exists, err := h.service.EmailExists(newEmail, user.ID)
+			exists, err := h.service.EmailExists(c.Request.Context(), newEmail, user.ID)
 			if err != nil {
 				response.Error(c, http.StatusInternalServerError, "failed to check email availability")
 				return
@@ -119,7 +119,7 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 	}
 
 	// 7. Сохранить в БД (GORM автоматически обновит UpdatedAt)
-	if err := h.service.Update(user); err != nil {
+	if err := h.service.Update(c.Request.Context(), user); err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to update user")
 		return
 	}
@@ -151,7 +151,7 @@ func (h *Handler) DeleteMe(c *gin.Context) {
 	}
 
 	// 3. Удалить пользователя (с проверкой пароля внутри)
-	if err := h.service.Delete(userID.(uuid.UUID), req.Password); err != nil {
+	if err := h.service.Delete(c.Request.Context(), userID.(uuid.UUID), req.Password); err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidPassword):
 			response.Error(c, http.StatusUnauthorized, "invalid password")

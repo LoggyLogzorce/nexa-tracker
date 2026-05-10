@@ -98,7 +98,7 @@ func (r *Router) Setup() *gin.Engine {
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
 					projectAccess.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
-					projectAccess.GET("tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task"}) })
+					projectAccess.GET("tasks/:task_id", r.handlers.TaskHdl.GetByID)
 				}
 
 				// Write operations requiring member role

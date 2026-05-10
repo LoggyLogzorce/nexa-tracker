@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -13,14 +14,14 @@ import (
 )
 
 type Service interface {
-	Register(email, password string, name *string) error
-	Login(email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error)
-	RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err error)
-	Logout(refreshToken string) error
-	Setup2FA(userID string) (secret, qrCode string, err error)
-	Verify2FA(userID, code string) error
-	Enable2FA(userID, code string) error
-	Disable2FA(userID, code string) error
+	Register(ctx context.Context, email, password string, name *string) error
+	Login(ctx context.Context, email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error)
+	RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
+	Logout(ctx context.Context, refreshToken string) error
+	Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error)
+	Verify2FA(ctx context.Context, userID, code string) error
+	Enable2FA(ctx context.Context, userID, code string) error
+	Disable2FA(ctx context.Context, userID, code string) error
 }
 
 type service struct {
@@ -41,9 +42,12 @@ func NewService(repo Repository, userRepo user.Repository, jwtSecret string, acc
 	}
 }
 
-func (s *service) Register(email, password string, name *string) error {
+func (s *service) Register(ctx context.Context, email, password string, name *string) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Check if email already exists
-	_, err := s.userRepo.GetByEmail(email)
+	_, err := s.userRepo.GetByEmail(ctxT, email)
 	if err == nil {
 		// User found, email already exists
 		return ErrEmailAlreadyExists
@@ -73,12 +77,15 @@ func (s *service) Register(email, password string, name *string) error {
 		Role:         "user",
 	}
 
-	return s.userRepo.Create(newUser)
+	return s.userRepo.Create(ctxT, newUser)
 }
 
-func (s *service) Login(email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error) {
+func (s *service) Login(ctx context.Context, email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Find user by email
-	foundUser, err := s.userRepo.GetByEmail(email)
+	foundUser, err := s.userRepo.GetByEmail(ctxT, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", "", ErrInvalidCredentials
@@ -125,14 +132,17 @@ func (s *service) Login(email, password, userAgent, ipAddress string) (accessTok
 		IPAddress: &ipAddress,
 	}
 
-	if err := s.repo.CreateRefreshToken(refreshTokenRecord); err != nil {
+	if err := s.repo.CreateRefreshToken(ctxT, refreshTokenRecord); err != nil {
 		return "", "", err
 	}
 
 	return accessToken, refreshToken, nil
 }
 
-func (s *service) RefreshToken(refreshToken string) (accessToken, newRefreshToken string, err error) {
+func (s *service) RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// 1. Валидировать refresh token JWT
 	claims, err := jwtpkg.Validate(refreshToken, s.jwtSecret)
 	if err != nil {
@@ -143,7 +153,7 @@ func (s *service) RefreshToken(refreshToken string) (accessToken, newRefreshToke
 	tokenHash := hash.TokenHash(refreshToken)
 
 	// 3. Найти refresh token в БД
-	tokenRecord, err := s.repo.GetRefreshToken(tokenHash)
+	tokenRecord, err := s.repo.GetRefreshToken(ctxT, tokenHash)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", "", ErrInvalidToken
@@ -155,24 +165,24 @@ func (s *service) RefreshToken(refreshToken string) (accessToken, newRefreshToke
 	if tokenRecord.RevokedAt != nil {
 		// Токен уже использован! Подозрение на атаку
 		// Отозвать все токены пользователя
-		s.repo.RevokeAllUserTokens(tokenRecord.UserID)
+		s.repo.RevokeAllUserTokens(ctxT, tokenRecord.UserID)
 		return "", "", ErrInvalidToken
 	}
 
 	// 5. Проверить expiration
 	if tokenRecord.ExpiresAt.Before(time.Now()) {
 		// Токен истёк, удалить из БД
-		s.repo.DeleteExpiredTokens()
+		s.repo.DeleteExpiredTokens(ctxT)
 		return "", "", ErrInvalidToken
 	}
 
 	// 6. Отозвать текущий refresh token (rotation)
-	if err := s.repo.RevokeRefreshToken(tokenHash); err != nil {
+	if err := s.repo.RevokeRefreshToken(ctxT, tokenHash); err != nil {
 		return "", "", err
 	}
 
 	// 7. Найти пользователя в БД
-	foundUser, err := s.userRepo.GetByID(claims.UserID)
+	foundUser, err := s.userRepo.GetByID(ctxT, claims.UserID)
 	if err != nil {
 		return "", "", ErrInvalidToken
 	}
@@ -211,37 +221,40 @@ func (s *service) RefreshToken(refreshToken string) (accessToken, newRefreshToke
 		IPAddress: tokenRecord.IPAddress,
 	}
 
-	if err := s.repo.CreateRefreshToken(newTokenRecord); err != nil {
+	if err := s.repo.CreateRefreshToken(ctxT, newTokenRecord); err != nil {
 		return "", "", err
 	}
 
 	return newAccessToken, newRefreshToken, nil
 }
 
-func (s *service) Logout(refreshToken string) error {
+func (s *service) Logout(ctx context.Context, refreshToken string) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Хешировать refresh token для поиска в БД
 	tokenHash := hash.TokenHash(refreshToken)
 
-	// Отозвать refresh token в БД
-	return s.repo.RevokeRefreshToken(tokenHash)
+	// Отозвать refresh token в БДctxT,
+	return s.repo.RevokeRefreshToken(ctxT, tokenHash)
 }
 
-func (s *service) Setup2FA(userID string) (secret, qrCode string, err error) {
+func (s *service) Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error) {
 	// TODO: Implement TOTP setup
 	return "", "", nil
 }
 
-func (s *service) Verify2FA(userID, code string) error {
+func (s *service) Verify2FA(ctx context.Context, userID, code string) error {
 	// TODO: Implement TOTP verification
 	return nil
 }
 
-func (s *service) Enable2FA(userID, code string) error {
+func (s *service) Enable2FA(ctx context.Context, userID, code string) error {
 	// TODO: Implement
 	return nil
 }
 
-func (s *service) Disable2FA(userID, code string) error {
+func (s *service) Disable2FA(ctx context.Context, userID, code string) error {
 	// TODO: Implement
 	return nil
 }

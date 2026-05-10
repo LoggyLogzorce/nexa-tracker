@@ -1,9 +1,11 @@
 package user
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -12,11 +14,11 @@ import (
 )
 
 type Service interface {
-	GetByID(id uuid.UUID) (*User, error)
-	GetByEmail(email string) (*User, error)
-	Update(user *User) error
-	Delete(id uuid.UUID, password string) error
-	EmailExists(email string, excludeUserID uuid.UUID) (bool, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
+	GetByEmail(ctx context.Context, email string) (*User, error)
+	Update(ctx context.Context, user *User) error
+	Delete(ctx context.Context, id uuid.UUID, password string) error
+	EmailExists(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
 }
 
 type service struct {
@@ -31,22 +33,31 @@ func NewService(repo Repository, eventBus *events.EventBus) Service {
 	}
 }
 
-func (s *service) GetByID(id uuid.UUID) (*User, error) {
-	return s.repo.GetByID(id)
+func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	return s.repo.GetByID(ctxT, id)
 }
 
-func (s *service) GetByEmail(email string) (*User, error) {
+func (s *service) GetByEmail(ctx context.Context, email string) (*User, error) {
 	// TODO: Implement
 	return nil, nil
 }
 
-func (s *service) Update(user *User) error {
-	return s.repo.Update(user)
+func (s *service) Update(ctx context.Context, user *User) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	return s.repo.Update(ctxT, user)
 }
 
-func (s *service) Delete(id uuid.UUID, password string) error {
+func (s *service) Delete(ctx context.Context, id uuid.UUID, password string) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// 1. Получить пользователя
-	user, err := s.repo.GetByID(id)
+	user, err := s.repo.GetByID(ctxT, id)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return ErrUserNotFound
@@ -60,7 +71,7 @@ func (s *service) Delete(id uuid.UUID, password string) error {
 	}
 
 	// 3. Проверить что пользователь не владелец проектов
-	hasProjects, err := s.repo.UserOwnsProjects(id)
+	hasProjects, err := s.repo.UserOwnsProjects(ctxT, id)
 	if err != nil {
 		return fmt.Errorf("failed to check projects: %w", err)
 	}
@@ -75,14 +86,14 @@ func (s *service) Delete(id uuid.UUID, password string) error {
 	user.Secret2FA = nil
 
 	// 5. Сохранить анонимизированные данные
-	if err := s.repo.Update(user); err != nil {
+	if err := s.repo.Update(ctxT, user); err != nil {
 		return fmt.Errorf("failed to anonymize user: %w", err)
 	}
 
-	// 6. Soft delete пользователя
-	if err := s.repo.Delete(id); err != nil {
-		return fmt.Errorf("failed to delete user: %w", err)
-	}
+	//// 6. Soft delete пользователя
+	//if err := s.repo.Delete(id); err != nil {
+	//	return fmt.Errorf("failed to delete user: %w", err)
+	//}
 
 	// 7. Опубликовать событие UserDeleted
 	event := UserDeletedEvent{
@@ -95,11 +106,14 @@ func (s *service) Delete(id uuid.UUID, password string) error {
 	return nil
 }
 
-func (s *service) EmailExists(email string, excludeUserID uuid.UUID) (bool, error) {
+func (s *service) EmailExists(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
 	// Привести email к lowercase для case-insensitive сравнения
 	email = strings.ToLower(email)
 
-	user, err := s.repo.GetByEmail(email)
+	user, err := s.repo.GetByEmail(ctxT, email)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil // Email свободен

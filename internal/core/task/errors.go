@@ -7,4 +7,5 @@ var (
 	ErrAssigneeNotInProject = errors.New("assignee not in project")
 	ErrStatusNotInProject   = errors.New("status not in project")
 	ErrPriorityNotInProject = errors.New("priority not in project")
+	ErrTaskNotFound         = errors.New("task not found")
 )

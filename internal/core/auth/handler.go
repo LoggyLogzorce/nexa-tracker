@@ -96,7 +96,7 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 
 	// Call service
-	err := h.service.Register(req.Email, req.Password, req.Name)
+	err := h.service.Register(c.Request.Context(), req.Email, req.Password, req.Name)
 	if err != nil {
 		// Check for specific errors
 		if errors.Is(err, ErrEmailAlreadyExists) {
@@ -130,7 +130,7 @@ func (h *Handler) Login(c *gin.Context) {
 	ipAddress := c.ClientIP()
 
 	// Call service
-	accessToken, refreshToken, err := h.service.Login(
+	accessToken, refreshToken, err := h.service.Login(c.Request.Context(),
 		req.Email,
 		req.Password,
 		userAgent,
@@ -167,7 +167,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 	}
 
 	// Call service
-	accessToken, newRefreshToken, err := h.service.RefreshToken(refreshToken)
+	accessToken, newRefreshToken, err := h.service.RefreshToken(c.Request.Context(), refreshToken)
 
 	if err != nil {
 		// При любой ошибке - удалить cookie
@@ -205,7 +205,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	}
 
 	// Отозвать refresh token в БД
-	if err := h.service.Logout(refreshToken); err != nil {
+	if err := h.service.Logout(c.Request.Context(), refreshToken); err != nil {
 		// Даже если ошибка в БД - удалить cookie
 		deleteCookie(c, "refresh_token", h.domain, h.sameSite)
 		response.Error(c, http.StatusInternalServerError, "Logout failed")

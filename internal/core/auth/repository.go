@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"time"
 
 	"github.com/google/uuid"
@@ -8,11 +9,11 @@ import (
 )
 
 type Repository interface {
-	CreateRefreshToken(token *RefreshToken) error
-	GetRefreshToken(tokenHash string) (*RefreshToken, error)
-	RevokeRefreshToken(tokenHash string) error
-	RevokeAllUserTokens(userID uuid.UUID) error
-	DeleteExpiredTokens() error
+	CreateRefreshToken(ctx context.Context, token *RefreshToken) error
+	GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error)
+	RevokeRefreshToken(ctx context.Context, tokenHash string) error
+	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
+	DeleteExpiredTokens(ctx context.Context) error
 }
 
 type repository struct {
@@ -23,33 +24,33 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) CreateRefreshToken(token *RefreshToken) error {
-	return r.db.Create(token).Error
+func (r *repository) CreateRefreshToken(ctx context.Context, token *RefreshToken) error {
+	return r.db.WithContext(ctx).Create(token).Error
 }
 
-func (r *repository) GetRefreshToken(tokenHash string) (*RefreshToken, error) {
+func (r *repository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
 	var token RefreshToken
-	err := r.db.Where("token_hash = ? AND revoked_at IS NULL", tokenHash).First(&token).Error
+	err := r.db.WithContext(ctx).Where("token_hash = ? AND revoked_at IS NULL", tokenHash).First(&token).Error
 	if err != nil {
 		return nil, err
 	}
 	return &token, nil
 }
 
-func (r *repository) RevokeRefreshToken(tokenHash string) error {
+func (r *repository) RevokeRefreshToken(ctx context.Context, tokenHash string) error {
 	now := time.Now()
-	return r.db.Model(&RefreshToken{}).
+	return r.db.WithContext(ctx).Model(&RefreshToken{}).
 		Where("token_hash = ?", tokenHash).
 		Update("revoked_at", now).Error
 }
 
-func (r *repository) RevokeAllUserTokens(userID uuid.UUID) error {
+func (r *repository) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error {
 	now := time.Now()
-	return r.db.Model(&RefreshToken{}).
+	return r.db.WithContext(ctx).Model(&RefreshToken{}).
 		Where("user_id = ? AND revoked_at IS NULL", userID).
 		Update("revoked_at", now).Error
 }
 
-func (r *repository) DeleteExpiredTokens() error {
-	return r.db.Where("expires_at < ?", time.Now()).Delete(&RefreshToken{}).Error
+func (r *repository) DeleteExpiredTokens(ctx context.Context) error {
+	return r.db.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&RefreshToken{}).Error
 }

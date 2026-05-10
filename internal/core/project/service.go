@@ -80,7 +80,7 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (
 		CreatedAt:   project.CreatedAt,
 	}
 
-	owner, err := s.userRepo.GetByID(project.OwnerID)
+	owner, err := s.userRepo.GetByID(ctxT, project.OwnerID)
 	if err != nil {
 		return projectDto, ErrGetOwner
 	}

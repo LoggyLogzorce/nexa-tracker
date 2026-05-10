@@ -6,6 +6,7 @@ import (
 	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -92,8 +93,28 @@ func (h *Handler) Create(c *gin.Context) {
 }
 
 func (h *Handler) GetByID(c *gin.Context) {
-	// TODO: Get task by ID
-	c.JSON(http.StatusOK, gin.H{"message": "get task endpoint"})
+	tId := c.Param("task_id")
+	taskID, err := strconv.ParseUint(tId, 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid task id")
+		return
+	}
+	task, err := h.service.GetByID(c.Request.Context(), uint(taskID))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrTaskNotFound):
+			response.Error(c, http.StatusNotFound, "task not found")
+		case errors.Is(err, ErrStatusNotInProject):
+			response.Error(c, http.StatusBadRequest, "status not in project")
+		case errors.Is(err, ErrPriorityNotInProject):
+			response.Error(c, http.StatusBadRequest, "priority not in project")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to get task")
+		}
+		return
+	}
+
+	response.Success(c, http.StatusOK, task)
 }
 
 func (h *Handler) GetByProjectID(c *gin.Context) {

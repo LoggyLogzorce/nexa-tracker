@@ -14,7 +14,7 @@ import (
 
 type Service interface {
 	Create(ctx context.Context, task *Task) (*TaskResponse, error)
-	GetByID(ctx context.Context, id uint) (*Task, error)
+	GetByID(ctx context.Context, id uint) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]TaskResponse, error)
 	Update(ctx context.Context, task *Task) error
 	Delete(ctx context.Context, id uint) error
@@ -138,11 +138,99 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	return taskRes, nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*Task, error) {
+func (s *service) GetByID(ctx context.Context, id uint) (*TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return s.repo.GetByID(ctxT, id)
+	task, err := s.repo.GetByID(ctxT, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTaskNotFound
+		}
+		return nil, err
+	}
+
+	taskRes := &TaskResponse{
+		ID:          task.ID,
+		CreatedAt:   task.CreatedAt,
+		UpdatedAt:   task.UpdatedAt,
+		Title:       task.Title,
+		Description: task.Description,
+		ProjectID:   task.ProjectID,
+	}
+
+	if task.Deadline != nil {
+		deadLine := task.Deadline.Format("2006-01-02")
+		taskRes.Deadline = &deadLine
+	}
+
+	var status *status.Status
+	if task.StatusID != nil {
+		status, err = s.statusRepo.GetByID(ctxT, *task.StatusID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrStatusNotInProject
+		}
+		if err != nil {
+			return nil, err
+		}
+		taskRes.Status = &TaskStatusResponse{
+			ID:         status.ID,
+			Name:       status.Name,
+			Color:      status.Color,
+			OrderIndex: status.OrderIndex,
+		}
+	}
+
+	var priority *priority.Priority
+	if task.PriorityID != nil {
+		priority, err = s.priorityRepo.GetByID(ctxT, *task.PriorityID)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrPriorityNotInProject
+		}
+		if err != nil {
+			return nil, err
+		}
+		taskRes.Priority = &TaskPriorityResponse{
+			ID:    priority.ID,
+			Title: priority.Title,
+			Color: priority.Color,
+		}
+	}
+
+	// Загружаем пользователей
+	userIDs := make([]uuid.UUID, 0, 2)
+	if task.AssigneeID != nil {
+		userIDs = append(userIDs, *task.AssigneeID)
+	}
+	if task.ReporterID != nil {
+		userIDs = append(userIDs, *task.ReporterID)
+	}
+	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	usersMap := make(map[uuid.UUID]user.User, 2)
+	for _, u := range users {
+		usersMap[u.ID] = u
+	}
+
+	if task.AssigneeID != nil {
+		taskRes.Assignee = &TaskUserResponse{
+			ID:    usersMap[*task.AssigneeID].ID,
+			Name:  usersMap[*task.AssigneeID].Name,
+			Email: usersMap[*task.AssigneeID].Email,
+		}
+	}
+
+	if task.ReporterID != nil {
+		taskRes.Reporter = &TaskUserResponse{
+			ID:    usersMap[*task.ReporterID].ID,
+			Name:  usersMap[*task.ReporterID].Name,
+			Email: usersMap[*task.ReporterID].Email,
+		}
+	}
+
+	return taskRes, nil
 }
 
 func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]TaskResponse, error) {
