@@ -13,6 +13,7 @@ const (
 	UserDeleted    EventType = "user.deleted"
 	ProjectDeleted EventType = "project.deleted"
 	ProjectCreated EventType = "project.created"
+	TaskCreate     EventType = "task.created"
 )
 
 // Event представляет событие в системе

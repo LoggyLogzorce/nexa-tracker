@@ -9,6 +9,7 @@ import (
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
@@ -26,6 +27,7 @@ type service struct {
 	statusRepo      status.Repository
 	priorityRepo    priority.Repository
 	participantRepo participant.Repository
+	eventBus        events.EventBus
 }
 
 func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
@@ -134,6 +136,23 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	taskRes.Description = task.Description
 	taskRes.CreatedAt = task.CreatedAt
 	taskRes.UpdatedAt = task.UpdatedAt
+
+	go func() {
+		event := events.TaskEvent{
+			Type:        events.TaskCreate,
+			ID:          task.ID,
+			CreatedAt:   task.CreatedAt,
+			UpdatedAt:   task.UpdatedAt,
+			Title:       task.Title,
+			Description: task.Description,
+			Deadline:    task.Deadline,
+			StatusID:    task.StatusID,
+			PriorityID:  task.PriorityID,
+			AssigneeID:  task.AssigneeID,
+			ReporterID:  task.ReporterID,
+		}
+		s.eventBus.Publish(event.ToEvent())
+	}()
 
 	return taskRes, nil
 }
