@@ -110,7 +110,7 @@ func (r *Router) Setup() *gin.Engine {
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)
 					projectMember.PUT("/priorities/:priority_id", r.handlers.PriorityHdl.Update)
 					projectMember.POST("/tasks", r.handlers.TaskHdl.Create)
-					projectMember.PUT("/tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update task"}) })
+					projectMember.PUT("/tasks/:task_id", r.handlers.TaskHdl.Update)
 				}
 
 				// Owner-only operations

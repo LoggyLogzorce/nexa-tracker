@@ -43,7 +43,7 @@ func (r *repository) GetByProjectID(ctx context.Context, pID uuid.UUID, archived
 }
 
 func (r *repository) Update(ctx context.Context, task *Task) error {
-	return r.db.Save(task).Error
+	return r.db.WithContext(ctx).Save(task).Error
 }
 
 func (r *repository) Delete(ctx context.Context, id uint) error {

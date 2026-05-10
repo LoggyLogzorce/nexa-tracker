@@ -17,7 +17,7 @@ type Service interface {
 	Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error)
-	Update(ctx context.Context, task *Task) error
+	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string) (*Task, error)
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 }
 
@@ -45,7 +45,7 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	defer cancel()
 
 	if task.AssigneeID != nil {
-		assignee, err := s.participantRepo.GetByUserID(ctxT, *task.AssigneeID)
+		assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, task.ProjectID, *task.AssigneeID)
 		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrDataIntegrity
 		}
@@ -405,11 +405,82 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 	return response, nil
 }
 
-func (s *service) Update(ctx context.Context, task *Task) error {
+func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string) (*Task, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return s.repo.Update(ctxT, task)
+	archived := false
+	if param == "true" {
+		archived = true
+	}
+
+	task, err := s.repo.GetByID(ctxT, taskID, archived)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrTaskNotFound
+		}
+		return nil, err
+	}
+
+	if req.Title != nil {
+		task.Title = *req.Title
+	}
+	if req.Description.Set {
+		task.Description = req.Description.Value
+	}
+	if req.StatusID.Set {
+		if req.StatusID.Value != nil {
+			st, err := s.statusRepo.GetByID(ctxT, *req.StatusID.Value)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrStatusNotInProject
+			}
+			if err != nil {
+				return nil, err
+			}
+			if st.ProjectID != task.ProjectID {
+				return nil, ErrStatusNotInProject
+			}
+		}
+		task.StatusID = req.StatusID.Value
+	}
+	if req.PriorityID.Set {
+		if req.PriorityID.Value != nil {
+			pr, err := s.priorityRepo.GetByID(ctxT, *req.PriorityID.Value)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrPriorityNotInProject
+			}
+			if err != nil {
+				return nil, err
+			}
+			if pr.ProjectID != task.ProjectID {
+				return nil, ErrPriorityNotInProject
+			}
+		}
+		task.PriorityID = req.PriorityID.Value
+	}
+	if req.AssigneeID.Set {
+		if req.AssigneeID.Value != nil {
+			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, task.ProjectID, *req.AssigneeID.Value)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrDataIntegrity
+			}
+
+			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrAssigneeNotInProject
+			}
+		}
+		task.AssigneeID = req.AssigneeID.Value
+	}
+	if req.Deadline.Set {
+		task.Deadline = req.Deadline.Value
+	}
+
+	err = s.repo.Update(ctxT, task)
+	if err != nil {
+		return nil, err
+	}
+
+	return task, nil
 }
 
 func (s *service) Delete(ctx context.Context, taskId uint, userID uuid.UUID) error {

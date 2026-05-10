@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/pkg/response"
+	"nexa-task-tracker/internal/pkg/validation"
 
 	"github.com/gin-gonic/gin"
 )
@@ -39,7 +40,8 @@ func (h *Handler) Create(c *gin.Context) {
 	// 2. Парсинг и валидация запроса
 	var req CreateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 
@@ -131,7 +133,8 @@ func (h *Handler) Update(c *gin.Context) {
 	// 3. Парсинг и валидация запроса
 	var req UpdateProjectRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 

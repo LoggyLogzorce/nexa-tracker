@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/pkg/nullable"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
 	"strconv"
@@ -31,12 +32,13 @@ type CreateTaskRequest struct {
 }
 
 type UpdateTaskRequest struct {
-	Title       *string `json:"title" binding:"omitempty,min=1,max=100"`
-	Description *string `json:"description"`
-	StatusID    *uint   `json:"status_id"`
-	PriorityID  *uint   `json:"priority_id"`
-	AssigneeID  *string `json:"assignee_id" binding:"omitempty,uuid"`
-	Deadline    *string `json:"deadline"`
+	Title       *string         `json:"title" binding:"omitempty,min=1,max=100"`
+	Description nullable.String `json:"description"`
+	StatusID    nullable.Uint   `json:"status_id"`
+	PriorityID  nullable.Uint   `json:"priority_id"`
+	AssigneeID  nullable.UUID   `json:"assignee_id"`
+	Deadline    nullable.Time   `json:"deadline"`
+	IsArchive   nullable.Bool   `json:"is_archive"`
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -148,8 +150,46 @@ func (h *Handler) GetByProjectID(c *gin.Context) {
 }
 
 func (h *Handler) Update(c *gin.Context) {
-	// TODO: Update task
-	c.JSON(http.StatusOK, gin.H{"message": "update task endpoint"})
+	tId := c.Param("task_id")
+	taskID, err := strconv.ParseUint(tId, 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid task id")
+		return
+	}
+
+	//uID, exists := c.Get(ctxkeys.UserIDKey)
+	//if !exists {
+	//	response.Error(c, http.StatusUnauthorized, "user not authenticated")
+	//	return
+	//}
+	//userID := uID.(uuid.UUID)
+
+	var req UpdateTaskRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
+		return
+	}
+
+	archived := c.Query("archived")
+
+	task, err := h.service.Update(c.Request.Context(), uint(taskID), &req, archived)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrTaskNotFound):
+			response.Error(c, http.StatusNotFound, "task not found")
+		case errors.Is(err, ErrStatusNotInProject):
+			response.Error(c, http.StatusBadRequest, "status not in project")
+		case errors.Is(err, ErrPriorityNotInProject):
+			response.Error(c, http.StatusBadRequest, "priority not in project")
+		case errors.Is(err, ErrAssigneeNotInProject):
+			response.Error(c, http.StatusBadRequest, "assignee not in project")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to update task")
+		}
+		return
+	}
+	response.Success(c, http.StatusOK, task)
 }
 
 func (h *Handler) Delete(c *gin.Context) {
