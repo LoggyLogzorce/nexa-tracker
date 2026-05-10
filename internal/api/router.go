@@ -111,7 +111,6 @@ func (r *Router) Setup() *gin.Engine {
 					projectMember.PUT("/priorities/:priority_id", r.handlers.PriorityHdl.Update)
 					projectMember.POST("/tasks", r.handlers.TaskHdl.Create)
 					projectMember.PUT("/tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update task"}) })
-					projectMember.DELETE("/tasks/:task_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete task"}) })
 				}
 
 				// Owner-only operations
@@ -125,6 +124,7 @@ func (r *Router) Setup() *gin.Engine {
 					projectOwner.DELETE("/participants/:user_id", r.handlers.ParticipantHdl.RemoveParticipant)
 					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", r.handlers.PriorityHdl.Delete)
+					projectMember.DELETE("/tasks/:task_id", r.handlers.TaskHdl.Delete)
 				}
 			}
 

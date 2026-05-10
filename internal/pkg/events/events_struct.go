@@ -36,6 +36,7 @@ type TaskEvent struct {
 	PriorityID *uint      `json:"priority_id"`
 	AssigneeID *uuid.UUID `gorm:"type:uuid" json:"assignee_id"`
 	ReporterID *uuid.UUID `gorm:"type:uuid" json:"reporter_id"`
+	DeletedBy  uuid.UUID  `gorm:"type:uuid" json:"deleted_by"`
 }
 
 // ToEvent конвертирует ProjectEvent в events.Event

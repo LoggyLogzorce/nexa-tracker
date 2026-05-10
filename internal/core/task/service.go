@@ -18,7 +18,7 @@ type Service interface {
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error)
 	Update(ctx context.Context, task *Task) error
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 }
 
 type service struct {
@@ -385,7 +385,6 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 					OrderIndex: st.OrderIndex,
 				}
 			} else {
-				// TODO усправить
 				return nil, ErrDataIntegrity
 			}
 		}
@@ -413,9 +412,23 @@ func (s *service) Update(ctx context.Context, task *Task) error {
 	return s.repo.Update(ctxT, task)
 }
 
-func (s *service) Delete(ctx context.Context, id uint) error {
+func (s *service) Delete(ctx context.Context, taskId uint, userID uuid.UUID) error {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return s.repo.Delete(ctxT, id)
+	err := s.repo.Delete(ctxT, taskId)
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		event := events.TaskEvent{
+			Type:      events.TaskDelete,
+			ID:        taskId,
+			DeletedBy: userID,
+		}
+		s.eventBus.Publish(event.ToEvent())
+	}()
+
+	return nil
 }

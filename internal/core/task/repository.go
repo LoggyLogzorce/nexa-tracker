@@ -47,5 +47,5 @@ func (r *repository) Update(ctx context.Context, task *Task) error {
 }
 
 func (r *repository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&Task{}, id).Error
+	return r.db.WithContext(ctx).Delete(&Task{}, id).Error
 }

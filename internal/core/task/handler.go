@@ -153,6 +153,24 @@ func (h *Handler) Update(c *gin.Context) {
 }
 
 func (h *Handler) Delete(c *gin.Context) {
-	// TODO: Delete task
-	c.JSON(http.StatusOK, gin.H{"message": "delete task endpoint"})
+	tId := c.Param("task_id")
+	taskID, err := strconv.ParseUint(tId, 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid task id")
+		return
+	}
+
+	uID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+	userID := uID.(uuid.UUID)
+
+	if err := h.service.Delete(c.Request.Context(), uint(taskID), userID); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to delete task")
+		return
+	}
+
+	response.Success(c, http.StatusOK, "task deleted")
 }
