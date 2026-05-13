@@ -11,8 +11,10 @@ type Repository interface {
 	Create(ctx context.Context, task *Task) error
 	GetByID(ctx context.Context, id uint, archived bool) (*Task, error)
 	GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error)
-	Update(ctx context.Context, task *Task) error
+	Update(ctx context.Context, task *Task, history *UpdateHistory) error
 	Delete(ctx context.Context, id uint) error
+
+	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]UpdateHistory, error)
 }
 
 type repository struct {
@@ -42,10 +44,21 @@ func (r *repository) GetByProjectID(ctx context.Context, pID uuid.UUID, archived
 	return tasks, err
 }
 
-func (r *repository) Update(ctx context.Context, task *Task) error {
-	return r.db.WithContext(ctx).Save(task).Error
+func (r *repository) Update(ctx context.Context, task *Task, history *UpdateHistory) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(task).Error; err != nil {
+			return err
+		}
+		return tx.Create(history).Error
+	})
 }
 
 func (r *repository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&Task{}, id).Error
+}
+
+func (r *repository) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]UpdateHistory, error) {
+	var history []UpdateHistory
+	err := r.db.WithContext(ctx).Where("task_id = ?", taskID).Find(&history).Error
+	return history, err
 }

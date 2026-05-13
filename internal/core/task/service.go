@@ -2,8 +2,10 @@ package task
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
@@ -17,8 +19,10 @@ type Service interface {
 	Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error)
-	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string) (*Task, error)
+	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error)
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
+
+	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]HistoryResponse, error)
 }
 
 type service struct {
@@ -27,17 +31,24 @@ type service struct {
 	statusRepo      status.Repository
 	priorityRepo    priority.Repository
 	participantRepo participant.Repository
-	eventBus        events.EventBus
+	eventBus        *events.EventBus
 }
 
-func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
+func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository, eventBus *events.EventBus) Service {
 	return &service{
 		repo:            repo,
 		userRepo:        userRepo,
 		statusRepo:      statusRepo,
 		priorityRepo:    priorityRepo,
 		participantRepo: participantRepo,
+		eventBus:        eventBus,
 	}
+}
+
+type FieldChange struct {
+	Field    string `json:"field"`
+	OldValue any    `json:"old_value"`
+	NewValue any    `json:"new_value"`
 }
 
 func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error) {
@@ -405,8 +416,8 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 	return response, nil
 }
 
-func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string) (*Task, error) {
-	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
 
 	archived := false
@@ -414,7 +425,7 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		archived = true
 	}
 
-	task, err := s.repo.GetByID(ctxT, taskID, archived)
+	taskOld, err := s.repo.GetByID(ctxT, taskID, archived)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrTaskNotFound
@@ -422,65 +433,158 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		return nil, err
 	}
 
+	taskNew := *taskOld
+	taskRes := &TaskResponse{
+		ID:          taskNew.ID,
+		CreatedAt:   taskNew.CreatedAt,
+		Title:       taskNew.Title,
+		Description: taskNew.Description,
+		ProjectID:   taskNew.ProjectID,
+		IsArchive:   taskNew.IsArchive,
+	}
+	if taskNew.Deadline != nil {
+		deadline := taskNew.Deadline.Format("2006-01-02")
+		taskRes.Deadline = &deadline
+	}
+	var changes []FieldChange
 	if req.Title != nil {
-		task.Title = *req.Title
+		taskNew.Title = *req.Title
+		taskRes.Title = *req.Title
+		changes = append(changes, FieldChange{"title", taskOld.Title, taskNew.Title})
 	}
 	if req.Description.Set {
-		task.Description = req.Description.Value
+		taskNew.Description = req.Description.Value
+		taskRes.Description = req.Description.Value
+		changes = append(changes, FieldChange{"description", taskOld.Description, taskNew.Description})
 	}
 	if req.StatusID.Set {
 		if req.StatusID.Value != nil {
 			st, err := s.statusRepo.GetByID(ctxT, *req.StatusID.Value)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, gorm.ErrRecordNotFound) || st.ProjectID != taskNew.ProjectID {
 				return nil, ErrStatusNotInProject
 			}
 			if err != nil {
 				return nil, err
 			}
-			if st.ProjectID != task.ProjectID {
-				return nil, ErrStatusNotInProject
+			taskRes.Status = &TaskStatusResponse{
+				ID:         st.ID,
+				Name:       st.Name,
+				Color:      st.Color,
+				OrderIndex: st.OrderIndex,
 			}
 		}
-		task.StatusID = req.StatusID.Value
+		taskNew.StatusID = req.StatusID.Value
+		changes = append(changes, FieldChange{"status", taskOld.StatusID, taskNew.StatusID})
 	}
 	if req.PriorityID.Set {
 		if req.PriorityID.Value != nil {
 			pr, err := s.priorityRepo.GetByID(ctxT, *req.PriorityID.Value)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
+			if errors.Is(err, gorm.ErrRecordNotFound) || pr.ProjectID != taskNew.ProjectID {
 				return nil, ErrPriorityNotInProject
 			}
 			if err != nil {
 				return nil, err
 			}
-			if pr.ProjectID != task.ProjectID {
-				return nil, ErrPriorityNotInProject
+			taskRes.Priority = &TaskPriorityResponse{
+				ID:    pr.ID,
+				Title: pr.Title,
+				Color: pr.Color,
 			}
 		}
-		task.PriorityID = req.PriorityID.Value
+		taskNew.PriorityID = req.PriorityID.Value
+		changes = append(changes, FieldChange{"priority", taskOld.PriorityID, taskNew.PriorityID})
 	}
 	if req.AssigneeID.Set {
 		if req.AssigneeID.Value != nil {
-			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, task.ProjectID, *req.AssigneeID.Value)
+			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, taskNew.ProjectID, *req.AssigneeID.Value)
 			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrDataIntegrity
+				return nil, err
 			}
 
 			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, ErrAssigneeNotInProject
 			}
 		}
-		task.AssigneeID = req.AssigneeID.Value
+		taskNew.AssigneeID = req.AssigneeID.Value
+		changes = append(changes, FieldChange{"assignee", taskOld.AssigneeID, taskNew.AssigneeID})
 	}
 	if req.Deadline.Set {
-		task.Deadline = req.Deadline.Value
+		taskNew.Deadline = req.Deadline.Value
+		if req.Deadline.Value != nil {
+			deadline := req.Deadline.Value.Format("2006-01-02")
+			taskRes.Deadline = &deadline
+		}
+		changes = append(changes, FieldChange{"deadline", taskOld.Deadline, taskNew.Deadline})
 	}
 
-	err = s.repo.Update(ctxT, task)
+	if req.IsArchive.Set {
+		if req.IsArchive.Value != nil {
+			taskNew.IsArchive = *req.IsArchive.Value
+			taskRes.IsArchive = *req.IsArchive.Value
+			changes = append(changes, FieldChange{"is_archive", taskOld.IsArchive, taskNew.IsArchive})
+		}
+	}
+
+	if len(changes) == 0 {
+		return nil, ErrNoFieldsToUpdate
+	}
+
+	userIDs := make([]uuid.UUID, 0, 2)
+	if taskNew.AssigneeID != nil {
+		userIDs = append(userIDs, *taskNew.AssigneeID)
+	}
+	if taskNew.ReporterID != nil {
+		userIDs = append(userIDs, *taskNew.ReporterID)
+	}
+
+	if len(userIDs) > 0 {
+		users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range users {
+			if taskNew.AssigneeID != nil && *taskNew.AssigneeID == u.ID {
+				taskRes.Assignee = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+			}
+			if taskNew.ReporterID != nil && *taskNew.ReporterID == u.ID {
+				taskRes.Reporter = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+			}
+		}
+	}
+
+	oldJSON, err := json.Marshal(taskOld)
 	if err != nil {
 		return nil, err
 	}
 
-	return task, nil
+	newJSON, err := json.Marshal(taskNew)
+	if err != nil {
+		return nil, err
+	}
+
+	changesJSON, err := json.Marshal(changes)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	history := &UpdateHistory{
+		CreatedAt: now,
+		UserID:    userID,
+		TaskID:    taskNew.ID,
+		Old:       datatypes.JSON(oldJSON),
+		New:       datatypes.JSON(newJSON),
+		Changes:   datatypes.JSON(changesJSON),
+	}
+	taskNew.UpdatedAt = now
+	taskRes.UpdatedAt = now
+
+	err = s.repo.Update(ctxT, &taskNew, history)
+	if err != nil {
+		return nil, err
+	}
+
+	return taskRes, nil
 }
 
 func (s *service) Delete(ctx context.Context, taskId uint, userID uuid.UUID) error {
@@ -502,4 +606,59 @@ func (s *service) Delete(ctx context.Context, taskId uint, userID uuid.UUID) err
 	}()
 
 	return nil
+}
+
+func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]HistoryResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	// TODO добавить middleware для проверки наличия задачи в проекте
+
+	history, err := s.repo.GetHistoryByTaskID(ctxT, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	userIDsMap := make(map[uuid.UUID]struct{})
+
+	for _, h := range history {
+		userIDsMap[h.UserID] = struct{}{}
+	}
+
+	// Загружаем пользователей
+	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	usersMap := make(map[uuid.UUID]user.User, len(users))
+	for _, u := range users {
+		usersMap[u.ID] = u
+	}
+
+	response := make([]HistoryResponse, len(history))
+	for i, h := range history {
+		response[i] = HistoryResponse{
+			ID:        h.ID,
+			CreatedAt: h.CreatedAt,
+			TaskID:    h.TaskID,
+			Old:       h.Old,
+			New:       h.New,
+			Changes:   h.Changes,
+		}
+		if u, ok := usersMap[h.UserID]; ok {
+			response[i].User = TaskUserResponse{
+				ID:    u.ID,
+				Name:  u.Name,
+				Email: u.Email,
+			}
+		} else {
+			return nil, ErrDataIntegrity
+		}
+	}
+
+	return response, nil
 }

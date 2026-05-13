@@ -157,12 +157,12 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	//uID, exists := c.Get(ctxkeys.UserIDKey)
-	//if !exists {
-	//	response.Error(c, http.StatusUnauthorized, "user not authenticated")
-	//	return
-	//}
-	//userID := uID.(uuid.UUID)
+	uID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+	userID := uID.(uuid.UUID)
 
 	var req UpdateTaskRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -173,7 +173,7 @@ func (h *Handler) Update(c *gin.Context) {
 
 	archived := c.Query("archived")
 
-	task, err := h.service.Update(c.Request.Context(), uint(taskID), &req, archived)
+	task, err := h.service.Update(c.Request.Context(), uint(taskID), &req, archived, userID)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrTaskNotFound):
@@ -184,6 +184,8 @@ func (h *Handler) Update(c *gin.Context) {
 			response.Error(c, http.StatusBadRequest, "priority not in project")
 		case errors.Is(err, ErrAssigneeNotInProject):
 			response.Error(c, http.StatusBadRequest, "assignee not in project")
+		case errors.Is(err, ErrNoFieldsToUpdate):
+			response.Error(c, http.StatusBadRequest, "no fields to update")
 		default:
 			response.Error(c, http.StatusInternalServerError, "failed to update task")
 		}
@@ -213,4 +215,25 @@ func (h *Handler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, http.StatusOK, "task deleted")
+}
+
+func (h *Handler) GetHistoryByTaskID(c *gin.Context) {
+	tId := c.Param("task_id")
+	taskID, err := strconv.ParseUint(tId, 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid task id")
+		return
+	}
+
+	history, err := h.service.GetHistoryByTaskID(c.Request.Context(), uint(taskID))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrDataIntegrity):
+			response.Error(c, http.StatusInternalServerError, "data integrity error")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to get task history")
+		}
+		return
+	}
+	response.Success(c, http.StatusOK, history)
 }

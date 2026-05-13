@@ -2,7 +2,9 @@ package api
 
 import (
 	"github.com/gin-gonic/gin"
+	"nexa-task-tracker/internal/core/attachment"
 	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/core/comment"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
@@ -20,6 +22,8 @@ type Handlers struct {
 	PriorityHdl    *priority.Handler
 	ParticipantHdl *participant.Handler
 	TaskHdl        *task.Handler
+	CommentHdl     *comment.Handler
+	AttachmentHdl  *attachment.Handler
 }
 
 type Router struct {
@@ -98,7 +102,8 @@ func (r *Router) Setup() *gin.Engine {
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
 					projectAccess.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
-					projectAccess.GET("tasks/:task_id", r.handlers.TaskHdl.GetByID)
+					projectAccess.GET("/tasks/:task_id", r.handlers.TaskHdl.GetByID)
+					projectAccess.GET("/tasks/:task_id/history", r.handlers.TaskHdl.GetHistoryByTaskID)
 				}
 
 				// Write operations requiring member role
@@ -131,9 +136,6 @@ func (r *Router) Setup() *gin.Engine {
 			// Task routes
 			tasks := protected.Group("/tasks")
 			{
-				// Task history
-				tasks.GET("/:id/history", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get task history"}) })
-
 				// Task comments
 				tasks.GET("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get comments"}) })
 				tasks.POST("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create comment"}) })

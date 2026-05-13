@@ -15,7 +15,6 @@ import (
 	"nexa-task-tracker/internal/core/attachment"
 	"nexa-task-tracker/internal/core/auth"
 	"nexa-task-tracker/internal/core/comment"
-	"nexa-task-tracker/internal/core/history"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
@@ -63,7 +62,7 @@ func main() {
 		&priority.Priority{},
 		&task.Task{},
 		&comment.Comment{},
-		&history.UpdateHistory{},
+		&task.UpdateHistory{},
 		&attachment.Attachment{},
 	); err != nil {
 		log.Fatal("Failed to run migrations:", err)
@@ -80,6 +79,8 @@ func main() {
 	priorityRepo := priority.NewRepository(database)
 	participantRepo := participant.NewRepository(database)
 	taskRepo := task.NewRepository(database)
+	commentRepo := comment.NewRepository(database)
+	attachmentRepo := attachment.NewRepository(database)
 
 	// Initialize services
 	userService := user.NewService(userRepo, eventBus)
@@ -88,7 +89,9 @@ func main() {
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
 	participantService := participant.NewService(participantRepo, userRepo)
-	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo)
+	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, eventBus)
+	commentService := comment.NewService(commentRepo)
+	attachmentService := attachment.NewService(attachmentRepo)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
@@ -98,6 +101,8 @@ func main() {
 	priorityHandler := priority.NewHandler(priorityService, eventBus)
 	participantHandler := participant.NewHandler(participantService)
 	taskHandler := task.NewHandler(taskService)
+	commentHandler := comment.NewHandler(commentService)
+	attachmentHandler := attachment.NewHandler(attachmentService)
 
 	h := api.Handlers{
 		AuthHdl:        authHandler,
@@ -107,6 +112,8 @@ func main() {
 		PriorityHdl:    priorityHandler,
 		ParticipantHdl: participantHandler,
 		TaskHdl:        taskHandler,
+		CommentHdl:     commentHandler,
+		AttachmentHdl:  attachmentHandler,
 	}
 
 	// Setup router

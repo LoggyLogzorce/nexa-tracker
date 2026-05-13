@@ -1,10 +1,10 @@
 package task
 
 import (
+	"gorm.io/datatypes"
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 type Task struct {
@@ -45,15 +45,6 @@ type TaskResponse struct {
 	IsArchive bool `json:"is_archive"`
 }
 
-// BeforeUpdate hook for logging changes to update_history
-func (t *Task) BeforeUpdate(tx *gorm.DB) error {
-	// TODO: Implement update history logging
-	// 1. Get old task state from DB
-	// 2. Compare with new state
-	// 3. Create UpdateHistory record with old/new JSONB
-	return nil
-}
-
 type TaskStatusResponse struct {
 	ID         uint   `json:"id"`
 	Name       string `json:"name"`
@@ -71,4 +62,26 @@ type TaskUserResponse struct {
 	ID    uuid.UUID `json:"id"`
 	Name  string    `json:"name"`
 	Email string    `json:"email"`
+}
+
+type UpdateHistory struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	UserID  uuid.UUID      `gorm:"type:uuid" json:"user_id"`
+	TaskID  uint           `gorm:"not null" json:"task_id"`
+	Old     datatypes.JSON `gorm:"type:jsonb" json:"old"`
+	New     datatypes.JSON `gorm:"type:jsonb" json:"new"`
+	Changes datatypes.JSON `gorm:"type:jsonb" json:"changes"` // [{field, old_value, new_value}]
+}
+
+type HistoryResponse struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	CreatedAt time.Time `json:"created_at"`
+
+	User    TaskUserResponse `gorm:"type:uuid" json:"user"`
+	TaskID  uint             `gorm:"not null" json:"task_id"`
+	Old     datatypes.JSON   `gorm:"type:jsonb" json:"old"`
+	New     datatypes.JSON   `gorm:"type:jsonb" json:"new"`
+	Changes datatypes.JSON   `gorm:"type:jsonb" json:"changes"` // [{field, old_value, new_value}]
 }
