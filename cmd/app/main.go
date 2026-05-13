@@ -90,7 +90,7 @@ func main() {
 	priorityService := priority.NewService(priorityRepo)
 	participantService := participant.NewService(participantRepo, userRepo)
 	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, eventBus)
-	commentService := comment.NewService(commentRepo)
+	commentService := comment.NewService(commentRepo, userRepo)
 	attachmentService := attachment.NewService(attachmentRepo)
 
 	// Initialize handlers
@@ -117,7 +117,7 @@ func main() {
 	}
 
 	// Setup router
-	router := api.NewRouter(h, cfg.JWT.Secret, projectRepo, participantRepo)
+	router := api.NewRouter(h, cfg.JWT.Secret, projectRepo, participantRepo, taskRepo)
 	engine := router.Setup()
 
 	// Setup modules

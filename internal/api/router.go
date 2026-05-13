@@ -32,15 +32,17 @@ type Router struct {
 	jwtSecret       string
 	projectRepo     project.Repository
 	participantRepo participant.Repository
+	taskRepo        task.Repository
 }
 
-func NewRouter(h Handlers, jwtSecret string, projectRepo project.Repository, participantRepo participant.Repository) *Router {
+func NewRouter(h Handlers, jwtSecret string, projectRepo project.Repository, participantRepo participant.Repository, taskRepo task.Repository) *Router {
 	return &Router{
 		handlers:        h,
 		engine:          gin.Default(),
 		jwtSecret:       jwtSecret,
 		projectRepo:     projectRepo,
 		participantRepo: participantRepo,
+		taskRepo:        taskRepo,
 	}
 }
 
@@ -101,9 +103,14 @@ func (r *Router) Setup() *gin.Engine {
 					projectAccess.GET("/participants", r.handlers.ParticipantHdl.GetByProjectID)
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
-					projectAccess.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
-					projectAccess.GET("/tasks/:task_id", r.handlers.TaskHdl.GetByID)
-					projectAccess.GET("/tasks/:task_id/history", r.handlers.TaskHdl.GetHistoryByTaskID)
+
+					tasks := projectAccess.Group("/tasks")
+					tasks.Use(middleware.CheckTaskProject(r.taskRepo))
+					{
+						tasks.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
+						tasks.GET("/:task_id", r.handlers.TaskHdl.GetByID)
+						tasks.GET("/:task_id/history", r.handlers.TaskHdl.GetHistoryByTaskID)
+					}
 				}
 
 				// Write operations requiring member role
@@ -114,8 +121,17 @@ func (r *Router) Setup() *gin.Engine {
 					projectMember.PUT("/statuses/:status_id", r.handlers.StatusHdl.Update)
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)
 					projectMember.PUT("/priorities/:priority_id", r.handlers.PriorityHdl.Update)
-					projectMember.POST("/tasks", r.handlers.TaskHdl.Create)
-					projectMember.PUT("/tasks/:task_id", r.handlers.TaskHdl.Update)
+
+					tasks := projectAccess.Group("/tasks")
+					tasks.Use(middleware.CheckTaskProject(r.taskRepo))
+					{
+						tasks.POST("", r.handlers.TaskHdl.Create)
+						tasks.PUT("/:task_id", r.handlers.TaskHdl.Update)
+						tasks.GET("/:task_id/comments", r.handlers.CommentHdl.GetByTaskID)
+						tasks.POST("/:task_id/comments", r.handlers.CommentHdl.Create)
+						tasks.PUT("/:task_id/comments/:comment_id", r.handlers.CommentHdl.Update)
+						tasks.DELETE("/:task_id/comments/:comment_id", r.handlers.CommentHdl.Delete)
+					}
 				}
 
 				// Owner-only operations
@@ -129,19 +145,13 @@ func (r *Router) Setup() *gin.Engine {
 					projectOwner.DELETE("/participants/:user_id", r.handlers.ParticipantHdl.RemoveParticipant)
 					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", r.handlers.PriorityHdl.Delete)
-					projectMember.DELETE("/tasks/:task_id", r.handlers.TaskHdl.Delete)
+					projectMember.DELETE("/tasks/:task_id", middleware.CheckTaskProject(r.taskRepo), r.handlers.TaskHdl.Delete)
 				}
 			}
 
 			// Task routes
 			tasks := protected.Group("/tasks")
 			{
-				// Task comments
-				tasks.GET("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get comments"}) })
-				tasks.POST("/:id/comments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "create comment"}) })
-				tasks.PUT("/:id/comments/:comment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "update comment"}) })
-				tasks.DELETE("/:id/comments/:comment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete comment"}) })
-
 				// Task attachments
 				tasks.GET("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get attachments"}) })
 				tasks.POST("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "upload attachment"}) })

@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/pkg/response"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -13,24 +16,6 @@ import (
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/project"
 )
-
-func RequireRole(roles ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// TODO: Implement RBAC
-		// 1. Get user role from context
-		_, exists := c.Get(ctxkeys.UserRoleKey)
-		if !exists {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "user not authenticated"})
-			c.Abort()
-			return
-		}
-
-		// 2. Check if user has required role
-		// TODO: Check if userRole is in roles slice
-
-		c.Next()
-	}
-}
 
 func RequireProjectAccess(projectRepo project.Repository, participantRepo participant.Repository, minRole string) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -110,8 +95,47 @@ func RequireProjectAccess(projectRepo project.Repository, participantRepo partic
 	}
 }
 
-func RequireAdmin() gin.HandlerFunc {
-	return RequireRole("admin")
+func CheckTaskProject(taskRepo task.Repository) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		taskIDStr := c.Param("task_id")
+		if taskIDStr == "" {
+			c.Next()
+		}
+		taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid task id")
+			c.Abort()
+		}
+
+		projectIDStr := c.Param("id")
+		projectID, err := uuid.Parse(projectIDStr)
+		if err != nil {
+			response.Error(c, http.StatusBadRequest, "invalid project id")
+			c.Abort()
+		}
+
+		archived := false
+		param := c.Query("archived")
+		if param == "true" {
+			archived = true
+		}
+
+		task, err := taskRepo.GetByID(c.Request.Context(), uint(taskID), archived)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				response.Error(c, http.StatusNotFound, "task not found")
+				c.Abort()
+			}
+			response.Error(c, http.StatusInternalServerError, "internal server error")
+			c.Abort()
+		}
+
+		if task.ProjectID != projectID {
+			response.Error(c, http.StatusNotFound, "task not found")
+			c.Abort()
+		}
+		c.Next()
+	}
 }
 
 // hasRequiredRole проверяет, имеет ли пользователь достаточные права
