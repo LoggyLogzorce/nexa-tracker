@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
@@ -61,7 +62,8 @@ type Handler struct {
 	refreshExpiry time.Duration
 }
 
-func NewHandler(service Service, domain string, sameSite http.SameSite, accessExp, refreshExp time.Duration) *Handler {
+func NewHandler(service Service, domain string, sameSite http.SameSite, accessExp, refreshExp time.Duration, eventBus *events.EventBus) *Handler {
+	eventBus.Subscribe(events.UserDeleted, service.HandleUserDeleted)
 	return &Handler{service: service,
 		domain:        domain,
 		sameSite:      sameSite,

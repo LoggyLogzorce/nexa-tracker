@@ -57,6 +57,7 @@ func (r *Router) Setup() *gin.Engine {
 
 	// API v1
 	v1 := r.engine.Group("/api/v1")
+	v1.Use(middleware.BodySizeLimit(5 << 20))
 	{
 		// Auth routes (public) with rate limiting
 		authGroup := v1.Group("/auth")
@@ -107,9 +108,15 @@ func (r *Router) Setup() *gin.Engine {
 					tasks := projectAccess.Group("/tasks")
 					tasks.Use(middleware.CheckTaskProject(r.taskRepo))
 					{
-						tasks.GET("/tasks", r.handlers.TaskHdl.GetByProjectID)
-						tasks.GET("/:task_id", r.handlers.TaskHdl.GetByID)
-						tasks.GET("/:task_id/history", r.handlers.TaskHdl.GetHistoryByTaskID)
+						tasks.GET("", r.handlers.TaskHdl.GetByProjectID)
+						tasksAccess := tasks.Group("/:task_id")
+						{
+							tasksAccess.GET("", r.handlers.TaskHdl.GetByID)
+							tasksAccess.GET("/history", r.handlers.TaskHdl.GetHistoryByTaskID)
+
+							tasksAccess.GET("/attachments", r.handlers.AttachmentHdl.GetByTaskID)
+							tasksAccess.GET("/attachments/:attachment_id", r.handlers.AttachmentHdl.Download)
+						}
 					}
 				}
 
@@ -122,15 +129,22 @@ func (r *Router) Setup() *gin.Engine {
 					projectMember.POST("/priorities", r.handlers.PriorityHdl.Create)
 					projectMember.PUT("/priorities/:priority_id", r.handlers.PriorityHdl.Update)
 
-					tasks := projectAccess.Group("/tasks")
+					// FIX: создаём свою группу tasks, а не наследуем от projectAccess
+					tasks := projectMember.Group("/tasks")
 					tasks.Use(middleware.CheckTaskProject(r.taskRepo))
 					{
 						tasks.POST("", r.handlers.TaskHdl.Create)
-						tasks.PUT("/:task_id", r.handlers.TaskHdl.Update)
-						tasks.GET("/:task_id/comments", r.handlers.CommentHdl.GetByTaskID)
-						tasks.POST("/:task_id/comments", r.handlers.CommentHdl.Create)
-						tasks.PUT("/:task_id/comments/:comment_id", r.handlers.CommentHdl.Update)
-						tasks.DELETE("/:task_id/comments/:comment_id", r.handlers.CommentHdl.Delete)
+
+						tasksMember := tasks.Group("/:task_id")
+						{
+							tasksMember.PUT("", r.handlers.TaskHdl.Update)
+							tasksMember.GET("/comments", r.handlers.CommentHdl.GetByTaskID)
+							tasksMember.POST("/comments", r.handlers.CommentHdl.Create)
+							tasksMember.PUT("/comments/:comment_id", r.handlers.CommentHdl.Update)
+							tasksMember.DELETE("/comments/:comment_id", r.handlers.CommentHdl.Delete)
+							tasksMember.POST("/attachments", r.handlers.AttachmentHdl.Upload)
+							tasksMember.DELETE("/attachments/:attachment_id", r.handlers.AttachmentHdl.Delete)
+						}
 					}
 				}
 
@@ -140,23 +154,18 @@ func (r *Router) Setup() *gin.Engine {
 				{
 					projectOwner.PUT("", r.handlers.ProjectHdl.Update)
 					projectOwner.DELETE("", r.handlers.ProjectHdl.Delete)
-					projectMember.POST("/participants", r.handlers.ParticipantHdl.AddParticipant)
+
+					// FIX: projectOwner.POST, а не projectMember
+					projectOwner.POST("/participants", r.handlers.ParticipantHdl.AddParticipant)
 					projectOwner.PUT("/participants/:user_id", r.handlers.ParticipantHdl.UpdateRole)
 					projectOwner.DELETE("/participants/:user_id", r.handlers.ParticipantHdl.RemoveParticipant)
+
 					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", r.handlers.PriorityHdl.Delete)
-					projectMember.DELETE("/tasks/:task_id", middleware.CheckTaskProject(r.taskRepo), r.handlers.TaskHdl.Delete)
-				}
-			}
 
-			// Task routes
-			tasks := protected.Group("/tasks")
-			{
-				// Task attachments
-				tasks.GET("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "get attachments"}) })
-				tasks.POST("/:id/attachments", func(c *gin.Context) { c.JSON(200, gin.H{"message": "upload attachment"}) })
-				tasks.GET("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "download attachment"}) })
-				tasks.DELETE("/:id/attachments/:attachment_id", func(c *gin.Context) { c.JSON(200, gin.H{"message": "delete attachment"}) })
+					// FIX: явное указание метода и мидлвара
+					projectOwner.DELETE("/tasks/:task_id", middleware.CheckTaskProject(r.taskRepo), r.handlers.TaskHdl.Delete)
+				}
 			}
 		}
 	}

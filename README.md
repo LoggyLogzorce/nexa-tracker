@@ -1,154 +1,293 @@
 # Nexa Task Tracker
 
-Task tracking system built with Go, Gin, PostgreSQL, and GORM.
+Task tracking API built with Go, Gin, PostgreSQL, and GORM.
 
 ## Features
 
-- User authentication with JWT (access + refresh tokens)
-- 2FA support (TOTP)
-- Project management with participants and roles
-- Task management with statuses, priorities, and assignments
-- Comments and attachments
-- Update history tracking
-- Notifications system
+### Implemented
+- **JWT Authentication** — registration, login, logout, token refresh with rotation and reuse attack detection
+- **User Management** — profile retrieval, update, account deletion with data anonymization
+- **Project Management** — full CRUD, scoped listing for owners/participants
+- **Task Management** — full CRUD with validation (assignee/status/priority scoped to project), archive support, update history tracking via JSONB diffs
+- **Custom Statuses & Priorities** — per-project, with drag-reorder support (order_index), default values (To Do / In Progress / Done; Low / Medium / High)
+- **Project Participants** — role-based access (owner / member / read_only)
+- **Task Comments** — CRUD with ownership verification, user enrichment
+- **Event Bus** — synchronous pub/sub for cross-module communication (e.g. project creation triggers default statuses/priorities, user deletion cascades to notifications)
+- **Rate Limiting** — IP-based, configurable (auth endpoints: 5 req/min)
+- **Standardized JSON Responses** — consistent `{"success": bool, "data": ..., "error": ...}` envelope
+
+### In Progress / Stubs
+- **2FA (TOTP)** — endpoints wired, handlers return placeholder responses
+- **File Attachments** — model + repository scaffolded, handlers return placeholder responses
+- **Notifications Module** — scaffolded, `Init()` commented out in `main.go`
+
+### Planned
+- **Chat Module** — placeholder file only
 
 ## Tech Stack
 
-- **Backend**: Go 1.22, Gin
-- **Database**: PostgreSQL 16
-- **ORM**: GORM
-- **Authentication**: JWT, TOTP (2FA)
-- **Containerization**: Docker, Docker Compose
+| Layer | Technology |
+|---|---|
+| Language | Go 1.26.1 |
+| HTTP Framework | Gin v1.10.0 |
+| ORM | GORM v1.30.0 |
+| Database | PostgreSQL 16 |
+| JWT | golang-jwt v5.2.1 |
+| Password Hashing | bcrypt (x/crypto v0.23.0) |
+| UUID | google/uuid v1.6.0 |
+| Rate Limiting | x/time v0.5.0 |
+| Env Loading | godotenv v1.5.1 |
+| Validation | go-playground/validator v10.20.0 |
+| Containerization | Docker + Docker Compose |
+
+## Architecture
+
+```
+┌─────────────┐     ┌──────────────┐     ┌────────────────┐
+│   Handler   │────▶│   Service    │────▶│  Repository    │
+│ (HTTP only) │     │ (business    │     │ (GORM queries) │
+│             │     │  logic)      │     │                │
+└─────────────┘     └──────┬───────┘     └────────────────┘
+                           │
+                           ▼
+                    ┌──────────────┐
+                    │  Event Bus   │
+                    │ (pub/sub)    │
+                    └──────┬───────┘
+                           │
+              ┌────────────┼────────────┐
+              ▼            ▼            ▼
+         status svc   priority svc   notify svc
+```
+
+- **Handler layer** — binds requests, extracts context, validates input, returns responses
+- **Service layer** — business logic, timeout management (5-10s context deadlines)
+- **Repository layer** — GORM queries, transactional writes
+- **Event Bus** — synchronous publish/subscribe for decoupled module communication
+- **Middleware stack** — rate limiter → JWT auth → RBAC (project-level)
 
 ## Project Structure
 
 ```
-/cmd/app                    - Application entry point
-/internal
-  /api                      - Router and API setup
-  /config                   - Configuration management
-  /db                       - Database connection and migrations
-  /core                     - Core business logic
-    /auth                   - Authentication (login, refresh, 2FA)
-    /user                   - User management
-    /project                - Project management
-    /task                   - Task management
-    /status                 - Task statuses
-    /priority               - Task priorities
-    /comment                - Task comments
-    /participant            - Project participants
-    /history                - Update history
-    /attachment             - File attachments
-  /middleware               - Auth, RBAC, rate limiting
-  /pkg                      - Shared utilities (JWT, hash, response)
-  /modules                  - Optional modules
-    /notify                 - Notifications
-/docker                     - Docker configuration
+├── cmd/app/main.go              — Application entry point
+├── docker/
+│   ├── Dockerfile               — Multi-stage build
+│   └── docker-compose.yml       — App + PostgreSQL 16
+├── internal/
+│   ├── api/router.go            — Route definitions and wiring
+│   ├── config/config.go         — Environment-based configuration
+│   ├── ctxkeys/ctxkeys.go       — Context key constants
+│   ├── db/
+│   │   ├── db.go                — GORM connection + auto-migration
+│   │   └── schema.sql           — Reference SQL schema
+│   ├── middleware/
+│   │   ├── auth.go              — JWT authentication
+│   │   ├── rbac.go              — Project-level RBAC (owner/member/read_only)
+│   │   └── ratelimit.go         — IP-based rate limiter
+│   ├── core/
+│   │   ├── auth/                — Auth (register, login, refresh, logout, 2FA stub)
+│   │   ├── user/                — User management
+│   │   ├── project/             — Project CRUD
+│   │   ├── task/                — Task CRUD + update history
+│   │   ├── status/              — Per-project statuses
+│   │   ├── priority/            — Per-project priorities
+│   │   ├── participant/         — Project participants
+│   │   ├── comment/             — Task comments
+│   │   └── attachment/          — Attachments (stub)
+│   ├── modules/
+│   │   ├── notify/              — Notifications (stub, commented out)
+│   │   └── chat/chat.go         — Chat (placeholder)
+│   └── pkg/
+│       ├── events/              — Event bus + event structs
+│       ├── hash/                — bcrypt + SHA-256 token hashing
+│       ├── jwt/                 — Access/refresh JWT tokens
+│       ├── nullable/            — Nullable types for PATCH updates
+│       ├── response/            — Standardized JSON responses
+│       └── validation/          — Request validation helpers
+└── .env.example                 — Environment template
 ```
 
 ## Getting Started
 
 ### Prerequisites
 
-- Go 1.22+
-- PostgreSQL 16+
-- Docker & Docker Compose (optional)
+- Go 1.26+ (or Docker)
+- PostgreSQL 16
 
-### Setup
-
-1. Clone the repository
-2. Copy `.env.example` to `.env` and configure
-3. Run with Docker Compose:
+### Local Development
 
 ```bash
-docker-compose -f docker/docker-compose.yml up
-```
+# Clone and navigate
+git clone <repo-url> && cd nexa-task-tracker
 
-Or run locally:
+# Configure environment
+cp .env.example .env
+# Edit .env with your database credentials and JWT secret
 
-```bash
+# Run
 go mod tidy
-go run cmd/app/main.go
+go run ./cmd/app
 ```
 
-### API Endpoints
+### With Docker
 
+```bash
+docker compose -f docker/docker-compose.yml up --build
 ```
-/health                                 - Health check
 
-/api/v1/auth
-  POST /register                        - Register new user
-  POST /login                           - Login
-  POST /refresh                         - Refresh access token
-  POST /logout                          - Logout
-  POST /2fa/setup                       - Setup 2FA
-  POST /2fa/verify                      - Verify 2FA code
-  POST /2fa/enable                      - Enable 2FA
-  POST /2fa/disable                     - Disable 2FA
+Server starts at `http://localhost:8080`.
 
-/api/v1/users
-  GET  /me                              - Get current user
-  PUT  /me                              - Update current user
-  DELETE /me                            - Delete current user
+## Configuration
 
-/api/v1/projects
-  GET    /                              - List projects
-  POST   /                              - Create project
-  GET    /:id                           - Get project
-  PUT    /:id                           - Update project
-  DELETE /:id                           - Delete project
-  GET    /:id/participants              - Get participants
-  POST   /:id/participants              - Add participant
-  PUT    /:id/participants/:user_id     - Update participant role
-  DELETE /:id/participants/:user_id     - Remove participant
-  GET    /:id/statuses                  - Get statuses
-  POST   /:id/statuses                  - Create status
-  PUT    /:id/statuses/:status_id       - Update status
-  DELETE /:id/statuses/:status_id       - Delete status
-  GET    /:id/priorities                - Get priorities
-  POST   /:id/priorities                - Create priority
-  PUT    /:id/priorities/:priority_id   - Update priority
-  DELETE /:id/priorities/:priority_id   - Delete priority
+All configuration is via environment variables (see `.env.example`):
 
-/api/v1/tasks
-  GET    /                              - List tasks (with filters)
-  POST   /                              - Create task
-  GET    /:id                           - Get task
-  PUT    /:id                           - Update task
-  DELETE /:id                           - Delete task
-  GET    /:id/history                   - Get task history
-  GET    /:id/comments                  - Get comments
-  POST   /:id/comments                  - Create comment
-  PUT    /:id/comments/:comment_id      - Update comment
-  DELETE /:id/comments/:comment_id      - Delete comment
-  GET    /:id/attachments               - Get attachments
-  POST   /:id/attachments               - Upload attachment
-  GET    /:id/attachments/:attachment_id - Download attachment
-  DELETE /:id/attachments/:attachment_id - Delete attachment
+| Variable | Default | Description |
+|---|---|---|
+| `SERVER_HOST` | `0.0.0.0` | Bind address |
+| `SERVER_PORT` | `8080` | HTTP port |
+| `DB_HOST` | `127.0.0.1` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_USER` | `postgres` | Database user |
+| `DB_PASSWORD` | — | Database password |
+| `DB_NAME` | `nexa_tracker` | Database name |
+| `DB_SSLMODE` | `disable` | PostgreSQL SSL mode |
+| `JWT_SECRET` | — | HMAC signing key |
+| `JWT_ACCESS_EXPIRY` | `15m` | Access token TTL |
+| `JWT_REFRESH_EXPIRY` | `168h` (7d) | Refresh token TTL |
+| `COOKIE_DOMAIN` | — | Cookie domain |
+| `COOKIE_SECURE` | `false` | Cookie Secure flag |
+| `COOKIE_SAMESITE` | `1` | SameSite (1=Default, 2=Lax, 3=Strict, 4=None) |
+| `NOTIFY_MODULE` | `false` | Enable notifications module |
 
-/api/v1/notifications
-  GET  /                                - List notifications
-  PUT  /:id/read                        - Mark as read
-  PUT  /read-all                        - Mark all as read
-```
+## API Endpoints
+
+### Health
+
+| Method | Path | Auth |
+|---|---|---|
+| `GET` | `/health` | — |
+
+### Auth (`/api/v1/auth`)
+
+Rate-limited (5 req/min). Cookies used for token storage.
+
+| Method | Path | Status |
+|---|---|---|
+| `POST` | `/register` | ✅ |
+| `POST` | `/login` | ✅ |
+| `POST` | `/refresh` | ✅ |
+| `POST` | `/logout` | ✅ |
+| `POST` | `/2fa/setup` | 🚧 stub |
+| `POST` | `/2fa/verify` | 🚧 stub |
+| `POST` | `/2fa/enable` | 🚧 stub |
+| `POST` | `/2fa/disable` | 🚧 stub |
+
+### Users (`/api/v1/users`)
+
+Requires JWT auth.
+
+| Method | Path | Status |
+|---|---|---|
+| `GET` | `/me` | ✅ |
+| `PUT` | `/me` | ✅ |
+| `DELETE` | `/me` | ✅ |
+
+### Projects (`/api/v1/projects`)
+
+Requires JWT auth. Participants roles: `owner` (read+write+delete), `member` (read+write), `read_only` (read).
+
+| Method | Path | Access | Status |
+|---|---|---|---|
+| `GET` | `/` | authenticated | ✅ |
+| `POST` | `/` | authenticated | ✅ |
+| `GET` | `/:id` | read_only+ | ✅ |
+| `PUT` | `/:id` | owner | ✅ |
+| `DELETE` | `/:id` | owner | ✅ |
+| `GET` | `/:id/participants` | read_only+ | ✅ |
+| `POST` | `/:id/participants` | owner | ✅ |
+| `PUT` | `/:id/participants/:user_id` | owner | ✅ |
+| `DELETE` | `/:id/participants/:user_id` | owner | ✅ |
+| `GET` | `/:id/statuses` | read_only+ | ✅ |
+| `POST` | `/:id/statuses` | member+ | ✅ |
+| `PUT` | `/:id/statuses/:status_id` | member+ | ✅ |
+| `DELETE` | `/:id/statuses/:status_id` | owner | ✅ |
+| `GET` | `/:id/priorities` | read_only+ | ✅ |
+| `POST` | `/:id/priorities` | member+ | ✅ |
+| `PUT` | `/:id/priorities/:priority_id` | member+ | ✅ |
+| `DELETE` | `/:id/priorities/:priority_id` | owner | ✅ |
+
+### Tasks (`/api/v1/projects/:id/tasks`)
+
+Requires JWT auth + project access. History tracked as JSONB diffs in `update_history` table.
+
+| Method | Path | Access | Status |
+|---|---|---|---|
+| `GET` | `/tasks` | read_only+ | ✅ |
+| `POST` | `/` | member+ | ✅ |
+| `GET` | `/:task_id` | read_only+ | ✅ |
+| `PUT` | `/:task_id` | member+ | ✅ |
+| `DELETE` | `/:task_id` | owner | ✅ |
+| `GET` | `/:task_id/history` | read_only+ | ✅ |
+| `GET` | `/:task_id/comments` | member+ | ✅ |
+| `POST` | `/:task_id/comments` | member+ | ✅ |
+| `PUT` | `/:task_id/comments/:comment_id` | member+ | ✅ |
+| `DELETE` | `/:task_id/comments/:comment_id` | member+ | ✅ |
+
+### Attachments (`/api/v1/projects/:id/tasks/:task_id/attachments`)
+
+| Method | Path | Status |
+|---|---|---|
+| `GET` | `/` | 🚧 stub |
+| `POST` | `/` | 🚧 stub |
+| `GET` | `/:attachment_id` | 🚧 stub |
+| `DELETE` | `/:attachment_id` | 🚧 stub |
+
+### Notifications (`/api/v1/notifications`)
+
+Commented out in `main.go`. Not available by default.
 
 ## Database Schema
 
-See `internal/db/schema.sql` for the complete database schema.
+### Key Tables
+
+| Table | Description |
+|---|---|
+| `users` | Core user accounts (uuid PK, email, password_hash, name, role, 2fa secret) |
+| `refresh_tokens` | JWT refresh token storage with revocation tracking and reuse detection |
+| `projects` | Project entities owned by a user |
+| `project_participants` | Many-to-many with roles (owner/member/read_only) |
+| `statuses` | Per-project task statuses with order_index for drag-reorder |
+| `priorities` | Per-project task priorities |
+| `tasks` | Tasks with references to project, status, priority, assignee, reporter |
+| `update_history` | JSONB-based field-level change tracking |
+| `comments` | Task-scoped comments |
+| `attachments` | File metadata (stub implementation) |
+
+See `internal/db/schema.sql` for the complete schema.
 
 ## Development
 
-All handlers, services, and repositories are scaffolded with TODO comments for implementation.
+### Adding a New Core Module
 
-Key features to implement:
-- JWT token generation and validation
-- Password hashing with bcrypt
-- TOTP 2FA setup and verification
-- GORM repository implementations
-- Business logic in services
-- Request validation in handlers
-- GORM hooks for update history
-- File upload/download for attachments
+1. Create `internal/core/<module>/` with `model.go`, `handler.go`, `service.go`, `repository.go`, `errors.go`
+2. Implement the `Repository` interface with GORM
+3. Implement business logic in the `Service`
+4. Wire HTTP handlers in the `Handler`
+5. Register routes in `internal/api/router.go`
+6. Initialize in `cmd/app/main.go`
+
+### Code Style
+
+- Three-layer architecture: Handler → Service → Repository
+- Services use `context.WithTimeout` for all database operations
+- Use `pkg/nullable` types for PATCH endpoints to distinguish "not provided" from "null"
+- Use `pkg/response` helpers for consistent JSON formatting
+- Events for cross-module communication go through the synchronous EventBus
+
+### Known Issues
+
+- Dockerfile uses Go 1.22; `go.mod` requires Go 1.26.1 — update the Dockerfile base image if building with Docker
+- `.env` DB name typo: `DBHOST` (missing underscore) should be `DB_HOST`
 
 ## License
 

@@ -91,11 +91,11 @@ func main() {
 	participantService := participant.NewService(participantRepo, userRepo)
 	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, eventBus)
 	commentService := comment.NewService(commentRepo, userRepo)
-	attachmentService := attachment.NewService(attachmentRepo)
+	attachmentService := attachment.NewService(attachmentRepo, userRepo, cfg.Upload.Path)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
-	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, eventBus)
 	projectHandler := project.NewHandler(projectService)
 	statusHandler := status.NewHandler(statusService, eventBus)
 	priorityHandler := priority.NewHandler(priorityService, eventBus)

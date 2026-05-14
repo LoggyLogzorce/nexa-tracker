@@ -14,7 +14,12 @@ type Config struct {
 	Database DatabaseConfig
 	JWT      JWTConfig
 	Cookie   CookieConfig
+	Upload   UploadConfig
 	Modules  CustomModule
+}
+
+type UploadConfig struct {
+	Path string
 }
 
 type CustomModule struct {
@@ -92,6 +97,9 @@ func Load() (*Config, error) {
 			Domain:   getEnv("COOKIE_DOMAIN", ""),
 			Secure:   getEnv("COOKIE_SECURE", "false"),
 			SameSite: http.SameSite(sameSite),
+		},
+		Upload: UploadConfig{
+			Path: getEnv("UPLOAD_PATH", "./uploads"),
 		},
 		Modules: CustomModule{
 			Notify: notifyModule,

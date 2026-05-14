@@ -100,11 +100,13 @@ func CheckTaskProject(taskRepo task.Repository) gin.HandlerFunc {
 		taskIDStr := c.Param("task_id")
 		if taskIDStr == "" {
 			c.Next()
+			return
 		}
 		taskID, err := strconv.ParseUint(taskIDStr, 10, 64)
 		if err != nil {
 			response.Error(c, http.StatusBadRequest, "invalid task id")
 			c.Abort()
+			return
 		}
 
 		projectIDStr := c.Param("id")
@@ -112,6 +114,7 @@ func CheckTaskProject(taskRepo task.Repository) gin.HandlerFunc {
 		if err != nil {
 			response.Error(c, http.StatusBadRequest, "invalid project id")
 			c.Abort()
+			return
 		}
 
 		archived := false
@@ -125,14 +128,17 @@ func CheckTaskProject(taskRepo task.Repository) gin.HandlerFunc {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				response.Error(c, http.StatusNotFound, "task not found")
 				c.Abort()
+				return
 			}
 			response.Error(c, http.StatusInternalServerError, "internal server error")
 			c.Abort()
+			return
 		}
 
 		if task.ProjectID != projectID {
 			response.Error(c, http.StatusNotFound, "task not found")
 			c.Abort()
+			return
 		}
 		c.Next()
 	}

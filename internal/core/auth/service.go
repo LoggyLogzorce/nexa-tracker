@@ -3,9 +3,11 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/hash"
 	jwtpkg "nexa-task-tracker/internal/pkg/jwt"
 
@@ -18,6 +20,7 @@ type Service interface {
 	Login(ctx context.Context, email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error)
 	RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, refreshToken string) error
+	HandleUserDeleted(event events.Event) error
 	Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error)
 	Verify2FA(ctx context.Context, userID, code string) error
 	Enable2FA(ctx context.Context, userID, code string) error
@@ -237,6 +240,18 @@ func (s *service) Logout(ctx context.Context, refreshToken string) error {
 
 	// Отозвать refresh token в БДctxT,
 	return s.repo.RevokeRefreshToken(ctxT, tokenHash)
+}
+
+func (s *service) HandleUserDeleted(event events.Event) error {
+	data, ok := event.Data.(user.UserDeletedEvent)
+	if !ok {
+		return fmt.Errorf("invalid event data type")
+	}
+
+	ctxT, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return s.repo.RevokeAllUserTokens(ctxT, data.UserID)
 }
 
 func (s *service) Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error) {

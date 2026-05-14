@@ -135,12 +135,16 @@ func (h *Handler) GetByProjectID(c *gin.Context) {
 		switch {
 		case errors.Is(err, ErrDataIntegrity):
 			response.Error(c, http.StatusInternalServerError, "data integrity error")
+			return
 		case errors.Is(err, ErrAssigneeNotInProject):
 			response.Error(c, http.StatusBadRequest, "assignee not in project")
+			return
 		case errors.Is(err, ErrPriorityNotInProject):
 			response.Error(c, http.StatusBadRequest, "priority not in project")
+			return
 		case errors.Is(err, ErrStatusNotInProject):
 			response.Error(c, http.StatusBadRequest, "status not in project")
+			return
 		default:
 			response.Error(c, http.StatusInternalServerError, "failed to get tasks list")
 		}
