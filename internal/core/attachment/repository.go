@@ -9,6 +9,7 @@ type Repository interface {
 	Create(ctx context.Context, attachment *Attachment) error
 	GetByID(ctx context.Context, id uint) (*Attachment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]Attachment, error)
+	GetByTaskIDs(ctx context.Context, taskIDs []uint) ([]Attachment, error)
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -33,6 +34,12 @@ func (r *repository) GetByID(ctx context.Context, id uint) (*Attachment, error) 
 func (r *repository) GetByTaskID(ctx context.Context, taskID uint) ([]Attachment, error) {
 	var attachments []Attachment
 	err := r.db.WithContext(ctx).Where("task_id = ?", taskID).Find(&attachments).Error
+	return attachments, err
+}
+
+func (r *repository) GetByTaskIDs(ctx context.Context, taskIDs []uint) ([]Attachment, error) {
+	var attachments []Attachment
+	err := r.db.WithContext(ctx).Where("task_id IN ?", taskIDs).Find(&attachments).Error
 	return attachments, err
 }
 

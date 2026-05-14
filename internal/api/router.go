@@ -104,6 +104,7 @@ func (r *Router) Setup() *gin.Engine {
 					projectAccess.GET("/participants", r.handlers.ParticipantHdl.GetByProjectID)
 					projectAccess.GET("/statuses", r.handlers.StatusHdl.GetByProjectID)
 					projectAccess.GET("/priorities", r.handlers.PriorityHdl.GetByProjectID)
+					projectAccess.GET("/attachments", r.handlers.AttachmentHdl.GetByProjectID)
 
 					tasks := projectAccess.Group("/tasks")
 					tasks.Use(middleware.CheckTaskProject(r.taskRepo))

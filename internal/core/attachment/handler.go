@@ -83,6 +83,23 @@ func (h *Handler) GetByTaskID(c *gin.Context) {
 	response.Success(c, http.StatusOK, attachments)
 }
 
+func (h *Handler) GetByProjectID(c *gin.Context) {
+	pID := c.Param("id")
+	projectID, err := uuid.Parse(pID)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid project id")
+		return
+	}
+
+	attachments, err := h.service.GetByProjectID(c.Request.Context(), projectID)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get attachments")
+		return
+	}
+
+	response.Success(c, http.StatusOK, attachments)
+}
+
 func (h *Handler) Download(c *gin.Context) {
 	tID := c.Param("task_id")
 	taskID, err := strconv.ParseUint(tID, 10, 64)

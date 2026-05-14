@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
 	"os"
 	"path/filepath"
@@ -20,18 +21,21 @@ type Service interface {
 	Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*Attachment, error)
 	GetByID(ctx context.Context, id, taskID uint) (*Attachment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentResponse, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]AttachmentResponse, error)
 	Delete(ctx context.Context, id, taskID uint, userID uuid.UUID) error
 }
 
 type service struct {
 	repo       Repository
+	taskRepo   task.Repository
 	userRepo   user.Repository
 	uploadPath string
 }
 
-func NewService(repo Repository, userRepo user.Repository, uploadPath string) Service {
+func NewService(repo Repository, taskRepo task.Repository, userRepo user.Repository, uploadPath string) Service {
 	return &service{
 		repo:       repo,
+		taskRepo:   taskRepo,
 		userRepo:   userRepo,
 		uploadPath: uploadPath,
 	}
@@ -126,6 +130,73 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentRes
 	defer cancel()
 
 	attachments, err := s.repo.GetByTaskID(ctxT, taskID)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(attachments) == 0 {
+		return []AttachmentResponse{}, nil
+	}
+
+	userIDsMap := make(map[uuid.UUID]struct{})
+	for _, a := range attachments {
+		userIDsMap[a.UserID] = struct{}{}
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	usersMap := make(map[uuid.UUID]user.User, len(users))
+	for _, u := range users {
+		usersMap[u.ID] = u
+	}
+
+	response := make([]AttachmentResponse, len(attachments))
+	for i, a := range attachments {
+		response[i] = AttachmentResponse{
+			ID:        a.ID,
+			CreatedAt: a.CreatedAt,
+			TaskID:    a.TaskID,
+			Filename:  a.Filename,
+			FileSize:  a.FileSize,
+			MimeType:  a.MimeType,
+		}
+		if u, ok := usersMap[a.UserID]; ok {
+			response[i].User = AttachmentUserResponse{
+				ID:    u.ID,
+				Name:  u.Name,
+				Email: u.Email,
+			}
+		}
+	}
+
+	return response, nil
+}
+
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]AttachmentResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	tasks, err := s.taskRepo.GetByProjectID(ctxT, projectID, false)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(tasks) == 0 {
+		return []AttachmentResponse{}, nil
+	}
+
+	taskIDs := make([]uint, len(tasks))
+	for i, t := range tasks {
+		taskIDs[i] = t.ID
+	}
+
+	attachments, err := s.repo.GetByTaskIDs(ctxT, taskIDs)
 	if err != nil {
 		return nil, err
 	}

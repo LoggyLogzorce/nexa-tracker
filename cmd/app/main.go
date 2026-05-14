@@ -91,7 +91,7 @@ func main() {
 	participantService := participant.NewService(participantRepo, userRepo)
 	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, eventBus)
 	commentService := comment.NewService(commentRepo, userRepo)
-	attachmentService := attachment.NewService(attachmentRepo, userRepo, cfg.Upload.Path)
+	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService)
