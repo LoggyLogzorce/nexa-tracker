@@ -1,6 +1,7 @@
 package api
 
 import (
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"nexa-task-tracker/internal/core/attachment"
 	"nexa-task-tracker/internal/core/auth"
@@ -30,16 +31,18 @@ type Router struct {
 	handlers        Handlers
 	engine          *gin.Engine
 	jwtSecret       string
+	corsOrigins     []string
 	projectRepo     project.Repository
 	participantRepo participant.Repository
 	taskRepo        task.Repository
 }
 
-func NewRouter(h Handlers, jwtSecret string, projectRepo project.Repository, participantRepo participant.Repository, taskRepo task.Repository) *Router {
+func NewRouter(h Handlers, jwtSecret string, corsOrigins []string, projectRepo project.Repository, participantRepo participant.Repository, taskRepo task.Repository) *Router {
 	return &Router{
 		handlers:        h,
 		engine:          gin.Default(),
 		jwtSecret:       jwtSecret,
+		corsOrigins:     corsOrigins,
 		projectRepo:     projectRepo,
 		participantRepo: participantRepo,
 		taskRepo:        taskRepo,
@@ -47,6 +50,15 @@ func NewRouter(h Handlers, jwtSecret string, projectRepo project.Repository, par
 }
 
 func (r *Router) Setup() *gin.Engine {
+	// CORS
+	r.engine.Use(cors.New(cors.Config{
+		AllowOrigins:     r.corsOrigins,
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type", "X-Requested-With"},
+		AllowCredentials: true,
+		MaxAge:           12 * 60 * 60,
+	}))
+
 	// Create rate limiter (5 requests per minute)
 	authRateLimiter := middleware.CreateRateLimiter(5)
 
@@ -94,6 +106,7 @@ func (r *Router) Setup() *gin.Engine {
 			projects := protected.Group("/projects")
 			{
 				projects.GET("", r.handlers.ProjectHdl.List)
+				projects.GET("/owned", r.handlers.ProjectHdl.ListOwned)
 				projects.POST("", r.handlers.ProjectHdl.Create)
 
 				// Routes requiring project access - read operations (read_only+)

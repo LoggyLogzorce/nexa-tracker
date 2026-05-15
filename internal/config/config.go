@@ -6,14 +6,20 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
+
+type CORSConfig struct {
+	Origins []string
+}
 
 type Config struct {
 	Server   ServerConfig
 	Database DatabaseConfig
 	JWT      JWTConfig
 	Cookie   CookieConfig
+	CORS     CORSConfig
 	Upload   UploadConfig
 	Modules  CustomModule
 }
@@ -75,6 +81,12 @@ func Load() (*Config, error) {
 		log.Println("NOTIFY_MODULE is invalid, continue with false")
 	}
 
+	rawOrigins := getEnv("CORS_ORIGINS", "http://localhost:5173")
+	corsOrigins := strings.Split(rawOrigins, ",")
+	for i := range corsOrigins {
+		corsOrigins[i] = strings.TrimSpace(corsOrigins[i])
+	}
+
 	return &Config{
 		Server: ServerConfig{
 			Host: getEnv("SERVER_HOST", "0.0.0.0"),
@@ -97,6 +109,9 @@ func Load() (*Config, error) {
 			Domain:   getEnv("COOKIE_DOMAIN", ""),
 			Secure:   getEnv("COOKIE_SECURE", "false"),
 			SameSite: http.SameSite(sameSite),
+		},
+		CORS: CORSConfig{
+			Origins: corsOrigins,
 		},
 		Upload: UploadConfig{
 			Path: getEnv("UPLOAD_PATH", "./uploads"),

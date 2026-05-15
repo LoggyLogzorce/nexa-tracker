@@ -28,6 +28,16 @@ go.work
 *.swo
 *~
 
+# Dependencies
+node_modules/
+uploads/
+
+# Frontend
+frontend/**/node_modules/
+frontend/**/dist/
+frontend/**/dist-ssr/
+frontend/**/*.local
+
 # OS
 .DS_Store
 Thumbs.db

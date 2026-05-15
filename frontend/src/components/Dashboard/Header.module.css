@@ -1,0 +1,29 @@
+.header { height: 80px; background: #fff; border-bottom: 1px solid #e2e8f0; display: flex; align-items: center; justify-content: space-between; padding: 0 1.5rem; }
+.mobileBtn { display: none; background: none; border: none; color: #64748b; cursor: pointer; }
+.icon { width: 20px; height: 20px; }
+.search { display: flex; align-items: center; flex: 1; max-width: 512px; margin-left: 1rem; position: relative; }
+.searchIcon { position: absolute; left: 12px; color: #94a3b8; width: 20px; height: 20px; }
+.search input { width: 100%; padding: 0.5rem 1rem 0.5rem 2.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #f8fafc; font-size: 0.875rem; }
+.search input:focus { outline: none; background: #fff; border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
+.actions { display: flex; align-items: center; gap: 1rem; }
+.notifWrap { position: relative; }
+.notifBtn { background: none; border: none; color: #94a3b8; cursor: pointer; position: relative; padding: 0.5rem; }
+.badge { position: absolute; top: 8px; right: 8px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 2px solid #fff; }
+.notifPanel { position: absolute; right: 0; top: 100%; margin-top: 0.5rem; width: 320px; background: #fff; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; z-index: 50; }
+.notifHeader { padding: 1rem; border-bottom: 1px solid #f1f5f9; }
+.notifHeader h3 { font-size: 1rem; font-weight: 600; color: #1e293b; margin: 0; }
+.notifList { max-height: 256px; overflow-y: auto; }
+.notifItem { padding: 1rem; border-bottom: 1px solid #f1f5f9; cursor: pointer; }
+.notifItem:hover { background: #f8fafc; }
+.notifTitle { font-size: 0.875rem; font-weight: 500; color: #1e293b; margin: 0 0 0.25rem; }
+.notifDesc { font-size: 0.75rem; color: #64748b; margin: 0 0 0.5rem; }
+.notifTime { font-size: 0.75rem; color: #94a3b8; }
+.notifFooter { padding: 0.75rem; border-top: 1px solid #f1f5f9; text-align: center; }
+.notifFooter button { background: none; border: none; color: #0284c7; font-size: 0.75rem; font-weight: 500; cursor: pointer; }
+.profile { display: flex; align-items: center; border-left: 1px solid #e2e8f0; padding-left: 1rem; }
+.userInfo { text-align: right; margin-right: 0.75rem; display: none; }
+@media (min-width: 640px) { .userInfo { display: block; } }
+.userName { font-size: 0.875rem; font-weight: 500; color: #334155; margin: 0; }
+.userRole { font-size: 0.75rem; color: #64748b; margin: 0; }
+.avatar { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05); object-fit: cover; }
+@media (max-width: 768px) { .search { display: none; } .mobileBtn { display: block; } }

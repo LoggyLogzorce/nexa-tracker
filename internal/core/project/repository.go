@@ -9,7 +9,8 @@ import (
 type Repository interface {
 	Create(ctx context.Context, project *Project) error
 	GetByID(ctx context.Context, id uuid.UUID) (*Project, error)
-	List(ctx context.Context, ownerID uuid.UUID) ([]Project, error)
+	ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Project, error)
+	ListByParticipant(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) ([]Project, error)
 	Update(ctx context.Context, project *Project) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -37,19 +38,16 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*Project, error
 	return &project, nil
 }
 
-func (r *repository) List(ctx context.Context, userID uuid.UUID) ([]Project, error) {
+func (r *repository) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Project, error) {
 	var projects []Project
-	result := r.db.WithContext(ctx).
-		Joins("LEFT JOIN project_participants ON project_participants.project_id = projects.id").
-		Where("project_participants.user_id = ? OR projects.owner_id = ?", userID, userID).
-		Distinct().
-		Find(&projects)
+	err := r.db.WithContext(ctx).Where("owner_id = ?", ownerID).Find(&projects).Error
+	return projects, err
+}
 
-	if result.Error != nil {
-		return nil, result.Error
-	}
-
-	return projects, nil
+func (r *repository) ListByParticipant(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) ([]Project, error) {
+	var projects []Project
+	err := r.db.WithContext(ctx).Where("owner_id = ? OR id IN ?", userID, projectIDs).Find(&projects).Error
+	return projects, err
 }
 
 func (r *repository) Update(ctx context.Context, project *Project) error {

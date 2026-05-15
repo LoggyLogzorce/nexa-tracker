@@ -1,0 +1,5 @@
+.form { display: flex; flex-direction: column; width: 100%; }
+.title { margin: 0 0 1.5rem; font-size: 1.5rem; font-weight: 600; color: #111827; text-align: center; }
+.links { display: flex; justify-content: center; margin-top: 1rem; font-size: 0.875rem; }
+.links a { color: #3b82f6; text-decoration: none; transition: color 0.2s; }
+.links a:hover { color: #2563eb; text-decoration: underline; }

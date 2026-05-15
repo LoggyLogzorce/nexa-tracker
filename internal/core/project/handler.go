@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/pkg/nullable"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
 
@@ -22,11 +23,15 @@ func NewHandler(service Service) *Handler {
 type CreateProjectRequest struct {
 	Title       string  `json:"title" binding:"required,min=1,max=50"`
 	Description *string `json:"description" binding:"omitempty,max=255"`
+	Status      *string `json:"status" binding:"omitempty,oneof=plan in_progress done"`
+	Priority    *string `json:"priority" binding:"omitempty,oneof=low medium high"`
 }
 
 type UpdateProjectRequest struct {
-	Title       string  `json:"title" binding:"omitempty,min=1,max=50"`
-	Description *string `json:"description" binding:"omitempty,max=255"`
+	Title       string          `json:"title" binding:"omitempty,min=1,max=50"`
+	Description nullable.String `json:"description"`
+	Status      nullable.String `json:"status"`
+	Priority    nullable.String `json:"priority"`
 }
 
 func (h *Handler) Create(c *gin.Context) {
@@ -49,6 +54,8 @@ func (h *Handler) Create(c *gin.Context) {
 	project := &Project{
 		Title:       req.Title,
 		Description: req.Description,
+		Status:      req.Status,
+		Priority:    req.Priority,
 	}
 
 	// 4. Вызвать сервис
@@ -114,6 +121,22 @@ func (h *Handler) List(c *gin.Context) {
 	response.Success(c, http.StatusOK, projects)
 }
 
+func (h *Handler) ListOwned(c *gin.Context) {
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	projects, err := h.service.ListOwned(c.Request.Context(), userID.(uuid.UUID))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get owned projects")
+		return
+	}
+
+	response.Success(c, http.StatusOK, projects)
+}
+
 func (h *Handler) Update(c *gin.Context) {
 	// 1. Парсинг project ID из URL
 	idStr := c.Param("id")
@@ -138,26 +161,21 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	// 4. Создать модель проекта для обновления
-	project := &Project{
-		ID:          projectID,
-		Title:       req.Title,
-		Description: req.Description,
-	}
-
 	// 5. Вызвать сервис с проверкой прав
-	if err := h.service.Update(c.Request.Context(), project, userID.(uuid.UUID)); err != nil {
-		// Обработка специфичных ошибок
-		if errors.Is(err, ErrProjectNotFound) {
+	project, err := h.service.Update(c.Request.Context(), req, userID.(uuid.UUID), projectID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrProjectNotFound):
 			response.Error(c, http.StatusNotFound, "project not found")
-			return
-		}
-		if errors.Is(err, ErrProjectAccessDenied) {
+		case errors.Is(err, ErrProjectAccessDenied):
 			response.Error(c, http.StatusForbidden, "access denied")
-			return
+		case errors.Is(err, ErrInvalidStatus):
+			response.Error(c, http.StatusBadRequest, "invalid status")
+		case errors.Is(err, ErrInvalidPriority):
+			response.Error(c, http.StatusBadRequest, "invalid priority")
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to update project")
 		}
-		// Общая ошибка
-		response.Error(c, http.StatusInternalServerError, "failed to update project")
 		return
 	}
 

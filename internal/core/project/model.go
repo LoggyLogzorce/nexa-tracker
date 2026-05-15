@@ -15,6 +15,8 @@ type Project struct {
 	Title       string    `gorm:"not null;size:50" json:"title"`
 	Description *string   `gorm:"size:255" json:"description"`
 	OwnerID     uuid.UUID `gorm:"type:uuid;not null" json:"owner_id"`
+	Status      *string   `gorm:"size:20;default:'plan'" json:"status"`
+	Priority    *string   `gorm:"size:10;default:'medium'" json:"priority"`
 }
 
 type ProjectResponse struct {
@@ -28,6 +30,9 @@ type ProjectResponse struct {
 		Name  string    `json:"name"`
 		Email string    `json:"email"`
 	} `json:"owner"`
+	Status     *string             `json:"status"`
+	Priority   *string             `json:"priority"`
+	UserRole   string              `json:"user_role"`
 	Statuses   []status.Status     `json:"statuses"`
 	Priorities []priority.Priority `json:"priorities"`
 }

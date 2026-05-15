@@ -85,7 +85,7 @@ func main() {
 	// Initialize services
 	userService := user.NewService(userRepo, eventBus)
 	authService := auth.NewService(authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
-	projectService := project.NewService(projectRepo, eventBus, userRepo, statusRepo, priorityRepo)
+	projectService := project.NewService(projectRepo, eventBus, userRepo, statusRepo, priorityRepo, participantRepo)
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
 	participantService := participant.NewService(participantRepo, userRepo)
@@ -117,7 +117,7 @@ func main() {
 	}
 
 	// Setup router
-	router := api.NewRouter(h, cfg.JWT.Secret, projectRepo, participantRepo, taskRepo)
+	router := api.NewRouter(h, cfg.JWT.Secret, cfg.CORS.Origins, projectRepo, participantRepo, taskRepo)
 	engine := router.Setup()
 
 	// Setup modules

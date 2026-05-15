@@ -9,7 +9,7 @@ import (
 type Repository interface {
 	Create(ctx context.Context, participant *ProjectParticipant) error
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipant, error)
-	GetByUserID(ctx context.Context, userID uuid.UUID) (*ProjectParticipant, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID) ([]ProjectParticipant, error)
 	GetByProjectAndUser(ctx context.Context, projectID uuid.UUID, userID uuid.UUID) (*ProjectParticipant, error)
 	Update(ctx context.Context, participant *ProjectParticipant) error
 	Delete(ctx context.Context, participant *ProjectParticipant) error
@@ -33,10 +33,10 @@ func (r *repository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([
 	return participants, err
 }
 
-func (r *repository) GetByUserID(ctx context.Context, userID uuid.UUID) (*ProjectParticipant, error) {
-	var participant *ProjectParticipant
-	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&participant).Error
-	return participant, err
+func (r *repository) GetByUserID(ctx context.Context, userID uuid.UUID) ([]ProjectParticipant, error) {
+	var participants []ProjectParticipant
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&participants).Error
+	return participants, err
 }
 
 func (r *repository) GetByProjectAndUser(ctx context.Context, projectID uuid.UUID, userID uuid.UUID) (*ProjectParticipant, error) {

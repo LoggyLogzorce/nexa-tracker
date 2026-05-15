@@ -1,0 +1,14 @@
+.page { max-width: 1280px; margin: 0 auto; }
+.header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; margin-bottom: 2rem; }
+.title { font-size: 1.5rem; font-weight: 700; color: #1e293b; margin: 0; }
+.subtitle { font-size: 0.875rem; color: #64748b; margin: 0.25rem 0 0; }
+.newBtn { display: inline-flex; align-items: center; padding: 0.5rem 1rem; background: #0284c7; color: #fff; border: none; border-radius: 0.5rem; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: 0.2s; }
+.newBtn:hover { background: #0369a1; }
+.icon { width: 20px; height: 20px; margin-right: 0.5rem; }
+.grid { display: grid; grid-template-columns: repeat(1, 1fr); gap: 1.5rem; }
+@media (min-width: 768px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 1024px) { .grid { grid-template-columns: repeat(3, 1fr); } }
+.addCard { background: #fff; border: 2px dashed #e2e8f0; border-radius: 0.75rem; padding: 1.5rem; display: flex; align-items: center; justify-content: center; min-height: 200px; cursor: pointer; transition: 0.2s; }
+.addCard:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+.addCardContent { display: flex; flex-direction: column; align-items: center; color: #64748b; }
+.addIcon { width: 48px; height: 48px; margin-bottom: 0.75rem; color: #cbd5e1; }
