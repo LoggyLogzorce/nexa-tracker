@@ -3,6 +3,7 @@ package project
 import (
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/status"
+	"nexa-task-tracker/internal/core/user"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,9 +15,10 @@ type Project struct {
 
 	Title       string    `gorm:"not null;size:50" json:"title"`
 	Description *string   `gorm:"size:255" json:"description"`
-	OwnerID     uuid.UUID `gorm:"type:uuid;not null" json:"owner_id"`
+	OwnerID     uuid.UUID `gorm:"type:uuid;not null;constraint:OnDelete:CASCADE" json:"owner_id"`
 	Status      *string   `gorm:"size:20;default:'plan'" json:"status"`
 	Priority    *string   `gorm:"size:10;default:'medium'" json:"priority"`
+	Owner       user.User `gorm:"foreignKey:OwnerID" json:"-"`
 }
 
 type ProjectResponse struct {

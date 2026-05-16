@@ -89,7 +89,7 @@ func main() {
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
 	participantService := participant.NewService(participantRepo, userRepo)
-	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, eventBus)
+	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, projectRepo, eventBus)
 	commentService := comment.NewService(commentRepo, userRepo)
 	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
 

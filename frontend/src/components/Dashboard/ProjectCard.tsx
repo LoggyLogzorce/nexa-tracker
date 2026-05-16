@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type {Project, ProjectStatus, Priority} from '../../types/project';
 import styles from './ProjectCard.module.css';
 
@@ -13,15 +14,16 @@ const priorityConfig: Record<Priority, { color: string; icon: string }> = {
     'Низкий': { color: styles.priorityLow, icon: 'M12 2L2 22h20L12 2zm0 4l6.5 13h-13L12 6z' },
 };
 
-interface Props { project: Project; onEdit: (p: Project) => void; onDelete: (p: Project) => void; }
+interface Props { project: Project; onEdit: (p: Project) => void; onDelete: (p: Project) => void; onEditStatuses?: (p: Project) => void; onEditPriorities?: (p: Project) => void; }
 
-export default function ProjectCard({ project, onEdit, onDelete }: Props) {
+export default function ProjectCard({ project, onEdit, onDelete, onEditStatuses, onEditPriorities }: Props) {
+    const navigate = useNavigate();
     const [menuOpen, setMenuOpen] = useState(false);
     const s = statusConfig[project.status];
     const p = priorityConfig[project.priority];
 
     return (
-        <div className={styles.card}>
+        <div className={styles.card} onClick={() => navigate(`/projects/${project.id}`)}>
             <div className={styles.content}>
                 <div className={styles.header}>
                     <span className={`${styles.badge} ${s.badge}`}>{project.status}</span>
@@ -40,6 +42,15 @@ export default function ProjectCard({ project, onEdit, onDelete }: Props) {
                                         <button className={`${styles.dropdownItem} ${styles.delete}`} onClick={(e) => { e.stopPropagation(); onDelete(project); setMenuOpen(false); }}>
                                             <svg className={styles.smallIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                                             Удалить
+                                        </button>
+                                        <div className={styles.dropdownDivider} />
+                                        <button className={styles.dropdownItem} onClick={(e) => { e.stopPropagation(); onEditStatuses?.(project); setMenuOpen(false); }}>
+                                            <svg className={styles.smallIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
+                                            Статусы
+                                        </button>
+                                        <button className={styles.dropdownItem} onClick={(e) => { e.stopPropagation(); onEditPriorities?.(project); setMenuOpen(false); }}>
+                                            <svg className={styles.smallIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h4v4H3V4zm7 0h4v4h-4V4zm7 0h4v4h-4V4zM3 10h4v4H3v-4zm7 0h4v4h-4v-4zm7 0h4v4h-4v-4zM3 16h4v4H3v-4zm7 0h4v4h-4v-4zm7 0h4v4h-4v-4z"/></svg>
+                                            Приоритеты
                                         </button>
                                     </div>
                                 )}

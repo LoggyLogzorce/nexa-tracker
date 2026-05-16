@@ -14,7 +14,7 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, project *Project, ownerID uuid.UUID) error
+	Create(ctx context.Context, project *Project, ownerID uuid.UUID) (*ProjectResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error)
 	List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
 	ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
@@ -54,7 +54,7 @@ var priorities = map[string]bool{
 	"high":   true,
 }
 
-func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUID) error {
+func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUID) (*ProjectResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -64,7 +64,7 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 
 	// 2. Создать проект
 	if err := s.repo.Create(ctxT, project); err != nil {
-		return err
+		return nil, err
 	}
 
 	event := events.ProjectEvent{
@@ -73,7 +73,17 @@ func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUI
 	}
 	s.eventBus.Publish(event.ToEvent())
 
-	return nil
+	projectNew := &ProjectResponse{
+		ID:          project.ID,
+		Title:       project.Title,
+		Description: project.Description,
+		CreatedAt:   project.CreatedAt,
+		Status:      project.Status,
+		Priority:    project.Priority,
+		UserRole:    "owner",
+	}
+
+	return projectNew, nil
 }
 
 func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error) {
@@ -175,6 +185,32 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 		currentUser = nil
 	}
 
+	projectsIDs := make([]uuid.UUID, 0, len(projects))
+
+	for _, p := range projects {
+		projectsIDs = append(projectsIDs, p.ID)
+	}
+
+	// Загружаем статусы
+	statuses, err := s.statusRepo.GetListByProjectsIDs(ctxT, projectsIDs)
+	if err != nil {
+		return nil, err
+	}
+	statusesMap := make(map[uuid.UUID][]status.Status, len(statuses))
+	for _, st := range statuses {
+		statusesMap[st.ProjectID] = append(statusesMap[st.ProjectID], st)
+	}
+
+	// Загружаем приоритеты
+	priorities, err := s.priorityRepo.GetListByProjectsIDs(ctxT, projectsIDs)
+	if err != nil {
+		return nil, err
+	}
+	prioritiesMap := make(map[uuid.UUID][]priority.Priority, len(priorities))
+	for _, p := range priorities {
+		prioritiesMap[p.ProjectID] = append(prioritiesMap[p.ProjectID], p)
+	}
+
 	responses := make([]ProjectResponse, 0, len(projects))
 	for _, p := range projects {
 		resp := ProjectResponse{
@@ -205,6 +241,18 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 			resp.UserRole = roleMap[p.ID]
 		}
 
+		if st, ok := statusesMap[p.ID]; ok {
+			resp.Statuses = st
+		} else {
+			return nil, ErrDataIntegrity
+		}
+
+		if pr, ok := prioritiesMap[p.ID]; ok {
+			resp.Priorities = pr
+		} else {
+			return nil, ErrDataIntegrity
+		}
+
 		responses = append(responses, resp)
 	}
 
@@ -223,6 +271,32 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 	currentUser, err := s.userRepo.GetByID(ctxT, userID)
 	if err != nil {
 		currentUser = nil
+	}
+
+	projectsIDs := make([]uuid.UUID, 0, len(projects))
+
+	for _, p := range projects {
+		projectsIDs = append(projectsIDs, p.ID)
+	}
+
+	// Загружаем статусы
+	statuses, err := s.statusRepo.GetListByProjectsIDs(ctxT, projectsIDs)
+	if err != nil {
+		return nil, err
+	}
+	statusesMap := make(map[uuid.UUID][]status.Status, len(statuses))
+	for _, st := range statuses {
+		statusesMap[st.ProjectID] = append(statusesMap[st.ProjectID], st)
+	}
+
+	// Загружаем приоритеты
+	priorities, err := s.priorityRepo.GetListByProjectsIDs(ctxT, projectsIDs)
+	if err != nil {
+		return nil, err
+	}
+	prioritiesMap := make(map[uuid.UUID][]priority.Priority, len(priorities))
+	for _, p := range priorities {
+		prioritiesMap[p.ProjectID] = append(prioritiesMap[p.ProjectID], p)
 	}
 
 	responses := make([]ProjectResponse, 0, len(projects))
@@ -247,6 +321,18 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 		if currentUser != nil {
 			resp.Owner.Name = currentUser.Name
 			resp.Owner.Email = currentUser.Email
+		}
+
+		if st, ok := statusesMap[p.ID]; ok {
+			resp.Statuses = st
+		} else {
+			return nil, ErrDataIntegrity
+		}
+
+		if pr, ok := prioritiesMap[p.ID]; ok {
+			resp.Priorities = pr
+		} else {
+			return nil, ErrDataIntegrity
 		}
 
 		responses = append(responses, resp)

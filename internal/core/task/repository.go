@@ -11,6 +11,8 @@ type Repository interface {
 	Create(ctx context.Context, task *Task) error
 	GetByID(ctx context.Context, id uint, archived bool) (*Task, error)
 	GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error)
+	GetByAssigneeID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error)
+	GetByReporterID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error)
 	Update(ctx context.Context, task *Task, history *UpdateHistory) error
 	Delete(ctx context.Context, id uint) error
 
@@ -41,6 +43,22 @@ func (r *repository) GetByID(ctx context.Context, id uint, archived bool) (*Task
 func (r *repository) GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error) {
 	var tasks []Task
 	err := r.db.WithContext(ctx).Where("project_id = ? AND is_archive = ?", pID, archived).Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *repository) GetByAssigneeID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error) {
+	var tasks []Task
+	err := r.db.WithContext(ctx).
+		Where("assignee_id = ? and is_archive = ?", uID, archived).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *repository) GetByReporterID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error) {
+	var tasks []Task
+	err := r.db.WithContext(ctx).
+		Where("reporter_id = ? and is_archive = ?", uID, archived).
+		Find(&tasks).Error
 	return tasks, err
 }
 

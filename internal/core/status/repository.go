@@ -13,6 +13,7 @@ type Repository interface {
 	GetByName(ctx context.Context, name string) (*Status, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
 	GetListByIDs(ctx context.Context, ids []uint) ([]Status, error)
+	GetListByProjectsIDs(ctx context.Context, ids []uuid.UUID) ([]Status, error)
 	GetMaxOrderIndex(ctx context.Context, projectID uuid.UUID) (int, error)
 	Update(ctx context.Context, status *Status) error
 	UpdateOrderIndexBatch(ctx context.Context, updates []struct {
@@ -66,6 +67,12 @@ func (r *repository) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([
 func (r *repository) GetListByIDs(ctx context.Context, ids []uint) ([]Status, error) {
 	var statuses []Status
 	err := r.db.WithContext(ctx).Where("id IN (?)", ids).Find(&statuses).Error
+	return statuses, err
+}
+
+func (r *repository) GetListByProjectsIDs(ctx context.Context, ids []uuid.UUID) ([]Status, error) {
+	var statuses []Status
+	err := r.db.WithContext(ctx).Where("project_id IN (?)", ids).Find(&statuses).Error
 	return statuses, err
 }
 

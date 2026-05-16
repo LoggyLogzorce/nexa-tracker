@@ -52,22 +52,66 @@ func (s *service) Create(ctx context.Context, status *Status) error {
 	}
 
 	// 3. Если order_index не указан (равен 0), установить в конец
-	if status.OrderIndex == 0 {
-		maxIndex, err := s.repo.GetMaxOrderIndex(ctxT, status.ProjectID)
+	if status.OrderIndex != 0 {
+		newOrderIndex := status.OrderIndex
+		oldOrderIndex := status.OrderIndex
+
+		// Получить все статусы проекта
+		statuses, err := s.repo.GetByProjectID(ctxT, status.ProjectID)
 		if err != nil {
 			return err
 		}
-		status.OrderIndex = maxIndex + 1
-	} else {
-		// Проверить, что статус с таким order_index не существует
-		existingStatuses, err := s.repo.GetByProjectID(ctxT, status.ProjectID)
-		if err != nil {
-			return err
+
+		// Проверить максимальный order_index
+		maxOrderIndex := len(statuses) - 1
+		if newOrderIndex > maxOrderIndex {
+			// Если превышает, поставить последним
+			newOrderIndex = maxOrderIndex
 		}
-		for _, existing := range existingStatuses {
-			if existing.OrderIndex == status.OrderIndex {
-				return ErrDuplicateOrderIndex
+
+		if newOrderIndex != oldOrderIndex {
+			// Подготовить массовое обновление для сдвига других статусов
+			var batchUpdates []struct {
+				ID         uint
+				OrderIndex int
 			}
+
+			if newOrderIndex < oldOrderIndex {
+				// Перемещение вверх: сдвинуть вниз статусы между new и old
+				for _, st := range statuses {
+					if st.ID != status.ID && st.OrderIndex >= newOrderIndex && st.OrderIndex < oldOrderIndex {
+						batchUpdates = append(batchUpdates, struct {
+							ID         uint
+							OrderIndex int
+						}{
+							ID:         st.ID,
+							OrderIndex: st.OrderIndex + 1,
+						})
+					}
+				}
+			} else {
+				// Перемещение вниз: сдвинуть вверх статусы между old и new
+				for _, st := range statuses {
+					if st.ID != status.ID && st.OrderIndex > oldOrderIndex && st.OrderIndex <= newOrderIndex {
+						batchUpdates = append(batchUpdates, struct {
+							ID         uint
+							OrderIndex int
+						}{
+							ID:         st.ID,
+							OrderIndex: st.OrderIndex - 1,
+						})
+					}
+				}
+			}
+
+			// Выполнить массовое обновление
+			if len(batchUpdates) > 0 {
+				if err := s.repo.UpdateOrderIndexBatch(ctxT, batchUpdates); err != nil {
+					return err
+				}
+			}
+
+			status.OrderIndex = newOrderIndex
 		}
 	}
 

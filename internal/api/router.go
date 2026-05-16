@@ -100,7 +100,10 @@ func (r *Router) Setup() *gin.Engine {
 				users.GET("/me", r.handlers.UserHdl.GetMe)
 				users.PUT("/me", r.handlers.UserHdl.UpdateMe)
 				users.DELETE("/me", r.handlers.UserHdl.DeleteMe)
+				users.GET("/search", r.handlers.UserHdl.SearchUsers)
 			}
+
+			protected.GET("/tasks/me", r.handlers.TaskHdl.GetByUserID)
 
 			// Project routes
 			projects := protected.Group("/projects")

@@ -1,37 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Project, ProjectStatus, Priority } from '../types/project';
+import { getProjects, getOwnedProjects, createProjectApi, updateProjectApi, deleteProjectApi } from '../api/projects';
+import { useNotifications } from '../contexts/useNotifications';
 
-const mockProjects: Project[] = [
-    { id: '1', title: 'Редизайн мобильного приложения', description: 'Обновление UI/UX дизайна для iOS и Android платформ, включая создание дизайн-системы.', status: 'В работе', priority: 'Высокий', role: 'owner', createdAt: '2026-05-12' },
-    { id: '2', title: 'Интеграция платежной системы', description: 'Подключение Stripe API и настройка webhook событий для обработки платежей.', status: 'Завершен', priority: 'Низкий', role: 'owner', createdAt: '2026-05-01' },
-    { id: '3', title: 'Аналитика пользователей', description: 'Внедрение Google Analytics 4 и настройка кастомных событий для трекинга поведения.', status: 'Планирование', priority: 'Средний', role: 'member', createdAt: '2026-05-14' },
-    { id: '4', title: 'Миграция базы данных', description: 'Перенос данных из PostgreSQL в MongoDB для улучшения производительности чтения.', status: 'В работе', priority: 'Высокий', role: 'owner', createdAt: '2026-05-10' },
-    { id: '5', title: 'Разработка API Gateway', description: 'Создание единой точки входа для микросервисов с Rate Limiting и аутентификацией.', status: 'В работе', priority: 'Высокий', role: 'member', createdAt: '2026-05-08' },
-    { id: '6', title: 'DevOps инфраструктура', description: 'Настройка CI/CD пайплайнов и мониторинга с использованием Kubernetes и Prometheus.', status: 'Завершен', priority: 'Средний', role: 'read_only', createdAt: '2026-05-05' },
-];
+export function useProjects(mode: 'all' | 'owned' = 'all') {
+    const { addNotification } = useNotifications();
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-export function useProjects() {
-    const [projects, setProjects] = useState<Project[]>(mockProjects);
+    useEffect(() => {
+        const fetch = mode === 'all' ? getProjects : getOwnedProjects;
 
-    const myProjects = projects.filter(p => p.role === 'owner');
+        fetch()
+            .then(data => { setProjects(data); setError(null); })
+            .catch(err => setError(err instanceof Error ? err.message : 'Ошибка загрузки проектов'))
+            .finally(() => setIsLoading(false));
+    }, [mode]);
 
-    const createProject = (data: { title: string; description: string; status: ProjectStatus; priority: Priority }) => {
-        const newProject: Project = {
-            id: String(Date.now()),
-            ...data,
-            role: 'owner',
-            createdAt: new Date().toISOString().split('T')[0],
-        };
-        setProjects(prev => [newProject, ...prev]);
-    };
+    const createProject = useCallback((data: { title: string; description: string; status: ProjectStatus; priority: Priority }) => {
+        createProjectApi(data)
+            .then(project => { setProjects(prev => [project, ...prev]); addNotification('success', 'Проект успешно создан'); })
+            .catch(() => addNotification('error', 'Ошибка при создании проекта'));
+    }, [addNotification]);
 
-    const updateProject = (updated: Project) => {
-        setProjects(prev => prev.map(p => p.id === updated.id ? updated : p));
-    };
+    const updateProject = useCallback((updated: Project) => {
+        updateProjectApi(updated.id, updated)
+            .then(project => { setProjects(prev => prev.map(p => p.id === project.id ? project : p)); addNotification('success', 'Проект успешно обновлён'); })
+            .catch(() => addNotification('error', 'Ошибка при обновлении проекта'));
+    }, [addNotification]);
 
-    const deleteProject = (id: string) => {
-        setProjects(prev => prev.filter(p => p.id !== id));
-    };
+    const deleteProject = useCallback((id: string) => {
+        deleteProjectApi(id)
+            .then(() => { setProjects(prev => prev.filter(p => p.id !== id)); addNotification('success', 'Проект успешно удалён'); })
+            .catch(() => addNotification('error', 'Ошибка при удалении проекта'));
+    }, [addNotification]);
 
-    return { projects, myProjects, createProject, updateProject, deleteProject };
+    return { projects, isLoading, error, createProject, updateProject, deleteProject };
 }

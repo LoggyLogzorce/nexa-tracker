@@ -41,6 +41,11 @@ type UpdateTaskRequest struct {
 	IsArchive   nullable.Bool   `json:"is_archive"`
 }
 
+type Param struct {
+	Archived  string
+	UserParam string
+}
+
 func (h *Handler) Create(c *gin.Context) {
 	pID := c.Param("id")
 	projectID, err := uuid.Parse(pID)
@@ -85,6 +90,8 @@ func (h *Handler) Create(c *gin.Context) {
 			response.Error(c, http.StatusBadRequest, "priority not in project")
 		case errors.Is(err, ErrStatusNotInProject):
 			response.Error(c, http.StatusBadRequest, "status not in project")
+		case errors.Is(err, ErrInvalidAssigneeRole):
+			response.Error(c, http.StatusBadRequest, "invalid assignee role")
 		default:
 			response.Error(c, http.StatusInternalServerError, "failed to create task")
 		}
@@ -129,8 +136,46 @@ func (h *Handler) GetByProjectID(c *gin.Context) {
 		return
 	}
 	isArchive := c.Query("archived")
+	param := Param{
+		Archived: isArchive,
+	}
 
-	tasks, err := h.service.GetByProjectID(c.Request.Context(), projectID, isArchive)
+	tasks, err := h.service.GetByProjectID(c.Request.Context(), projectID, param)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrDataIntegrity):
+			response.Error(c, http.StatusInternalServerError, "data integrity error")
+			return
+		case errors.Is(err, ErrAssigneeNotInProject):
+			response.Error(c, http.StatusBadRequest, "assignee not in project")
+			return
+		case errors.Is(err, ErrPriorityNotInProject):
+			response.Error(c, http.StatusBadRequest, "priority not in project")
+			return
+		case errors.Is(err, ErrStatusNotInProject):
+			response.Error(c, http.StatusBadRequest, "status not in project")
+			return
+		default:
+			response.Error(c, http.StatusInternalServerError, "failed to get tasks list")
+		}
+		return
+	}
+	response.Success(c, http.StatusOK, tasks)
+}
+
+func (h *Handler) GetByUserID(c *gin.Context) {
+	uID, ok := c.Get(ctxkeys.UserIDKey)
+	if !ok {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	t := c.Query("type")
+	param := Param{
+		UserParam: t,
+	}
+
+	tasks, err := h.service.GetByUserID(c.Request.Context(), uID.(uuid.UUID), param)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrDataIntegrity):
@@ -190,6 +235,8 @@ func (h *Handler) Update(c *gin.Context) {
 			response.Error(c, http.StatusBadRequest, "assignee not in project")
 		case errors.Is(err, ErrNoFieldsToUpdate):
 			response.Error(c, http.StatusBadRequest, "no fields to update")
+		case errors.Is(err, ErrInvalidAssigneeRole):
+			response.Error(c, http.StatusBadRequest, "invalid assignee role")
 		default:
 			response.Error(c, http.StatusInternalServerError, "failed to update task")
 		}

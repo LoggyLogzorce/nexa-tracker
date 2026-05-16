@@ -1,17 +1,22 @@
 import { useState } from 'react';
 import type { Project } from '../../types/project';
 import { useProjects } from '../../hooks/useProjects';
+import { getProjectById } from '../../api/projects';
 import ProjectCard from '../../components/Dashboard/ProjectCard';
 import EditModal from '../../components/Dashboard/EditModal';
 import DeleteModal from '../../components/Dashboard/DeleteModal';
 import CreateModal from '../../components/Projects/CreateModal';
+import EditStatusesModal from '../../components/Projects/EditStatusesModal';
+import EditPrioritiesModal from '../../components/Projects/EditPrioritiesModal';
 import styles from './ProjectsPage.module.css';
 
 export default function ProjectsPage() {
-    const { projects, createProject, updateProject, deleteProject } = useProjects();
+    const { projects, isLoading, createProject, updateProject, deleteProject } = useProjects('all');
     const [showCreate, setShowCreate] = useState(false);
     const [editModal, setEditModal] = useState<{ open: boolean; project?: Project }>({ open: false });
     const [deleteModal, setDeleteModal] = useState<{ open: boolean; project?: Project }>({ open: false });
+    const [statusEdit, setStatusEdit] = useState<{ open: boolean; project?: Project }>({ open: false });
+    const [priorityEdit, setPriorityEdit] = useState<{ open: boolean; project?: Project }>({ open: false });
 
     const handleEdit = (project: Project) => { setEditModal({ open: true, project }); };
     const handleDelete = (project: Project) => { setDeleteModal({ open: true, project }); };
@@ -24,6 +29,14 @@ export default function ProjectsPage() {
     const handleConfirmDelete = (id: string) => {
         deleteProject(id);
         setDeleteModal({ open: false });
+    };
+
+    const handleSaveStatuses = (project: Project) => {
+        getProjectById(project.id).then(p => { updateProject(p); setStatusEdit({ open: false }); });
+    };
+
+    const handleSavePriorities = (project: Project) => {
+        getProjectById(project.id).then(p => { updateProject(p); setPriorityEdit({ open: false }); });
     };
 
     return (
@@ -39,9 +52,12 @@ export default function ProjectsPage() {
                 </button>
             </div>
 
+            {isLoading ? (
+                <p className={styles.loading}>Загрузка проектов...</p>
+            ) : (
             <div className={styles.grid}>
                 {projects.map(project => (
-                    <ProjectCard key={project.id} project={project} onEdit={handleEdit} onDelete={handleDelete} />
+                    <ProjectCard key={project.id} project={project} onEdit={handleEdit} onDelete={handleDelete} onEditStatuses={p => setStatusEdit({ open: true, project: p })} onEditPriorities={p => setPriorityEdit({ open: true, project: p })} />
                 ))}
                 <button className={styles.addCard} onClick={() => setShowCreate(true)}>
                     <div className={styles.addCardContent}>
@@ -50,6 +66,7 @@ export default function ProjectsPage() {
                     </div>
                 </button>
             </div>
+            )}
 
             {showCreate && (
                 <CreateModal onClose={() => setShowCreate(false)} onSave={createProject} />
@@ -59,6 +76,14 @@ export default function ProjectsPage() {
             )}
             {deleteModal.open && deleteModal.project && (
                 <DeleteModal project={deleteModal.project} onClose={() => setDeleteModal({ open: false })} onConfirm={handleConfirmDelete} />
+            )}
+
+            {statusEdit.open && statusEdit.project && (
+                <EditStatusesModal projectId={statusEdit.project.id} statuses={statusEdit.project.statuses} onClose={() => setStatusEdit({ open: false })} onSave={() => handleSaveStatuses(statusEdit.project!)} />
+            )}
+
+            {priorityEdit.open && priorityEdit.project && (
+                <EditPrioritiesModal projectId={priorityEdit.project.id} priorities={priorityEdit.project.priorities} onClose={() => setPriorityEdit({ open: false })} onSave={() => handleSavePriorities(priorityEdit.project!)} />
             )}
         </div>
     );

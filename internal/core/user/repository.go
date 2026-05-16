@@ -11,6 +11,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
+	SearchByEmail(ctx context.Context, email string) ([]User, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bool, error)
@@ -71,4 +72,12 @@ func (r *repository) UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bo
 	}
 
 	return count > 0, nil
+}
+
+func (r *repository) SearchByEmail(ctx context.Context, email string) ([]User, error) {
+	var users []User
+	err := r.db.WithContext(ctx).
+		Where("email ILIKE ?", "%"+email+"%").
+		Find(&users).Error
+	return users, err
 }

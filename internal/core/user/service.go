@@ -16,6 +16,7 @@ import (
 type Service interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
+	SearchByEmail(ctx context.Context, query string) ([]UserResponse, error)
 	Update(ctx context.Context, user *User) error
 	Delete(ctx context.Context, id uuid.UUID, password string) error
 	EmailExists(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
@@ -43,6 +44,22 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 func (s *service) GetByEmail(ctx context.Context, email string) (*User, error) {
 	// TODO: Implement
 	return nil, nil
+}
+
+func (s *service) SearchByEmail(ctx context.Context, query string) ([]UserResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	users, err := s.repo.SearchByEmail(ctxT, query)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]UserResponse, 0, len(users))
+	for i := range users {
+		responses = append(responses, *users[i].ToResponse())
+	}
+	return responses, nil
 }
 
 func (s *service) Update(ctx context.Context, user *User) error {

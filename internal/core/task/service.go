@@ -9,6 +9,7 @@ import (
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
+	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/pkg/events"
@@ -18,7 +19,8 @@ import (
 type Service interface {
 	Create(ctx context.Context, task *Task) (*TaskResponse, error)
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
-	GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID, param Param) ([]TaskResponse, error)
+	GetByUserID(ctx context.Context, userID uuid.UUID, param Param) ([]TaskResponse, error)
 	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error)
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 
@@ -31,16 +33,18 @@ type service struct {
 	statusRepo      status.Repository
 	priorityRepo    priority.Repository
 	participantRepo participant.Repository
+	projectRepo     project.Repository
 	eventBus        *events.EventBus
 }
 
-func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository, eventBus *events.EventBus) Service {
+func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository, projectRepo project.Repository, eventBus *events.EventBus) Service {
 	return &service{
 		repo:            repo,
 		userRepo:        userRepo,
 		statusRepo:      statusRepo,
 		priorityRepo:    priorityRepo,
 		participantRepo: participantRepo,
+		projectRepo:     projectRepo,
 		eventBus:        eventBus,
 	}
 }
@@ -62,7 +66,15 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 		}
 
 		if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, ErrAssigneeNotInProject
+			projectData, err := s.projectRepo.GetByID(ctxT, task.ProjectID)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrProjectNotFound
+			}
+			if projectData.OwnerID != *task.AssigneeID {
+				return nil, ErrAssigneeNotInProject
+			}
+		} else if assignee.Role == "read_only" {
+			return nil, ErrInvalidAssigneeRole
 		}
 	}
 
@@ -271,18 +283,171 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 	return taskRes, nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param string) ([]TaskResponse, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param Param) ([]TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	archived := false
-	if param == "true" {
+	if param.Archived == "true" {
 		archived = true
 	}
 
 	tasks, err := s.repo.GetByProjectID(ctxT, projectID, archived)
 	if err != nil {
 		return nil, err
+	}
+
+	// Собираем уникальные ID
+	userIDsMap := make(map[uuid.UUID]struct{})
+	statusIDsMap := make(map[uint]struct{})
+	priorityIDsMap := make(map[uint]struct{})
+
+	for _, t := range tasks {
+		if t.AssigneeID != nil {
+			userIDsMap[*t.AssigneeID] = struct{}{}
+		}
+		if t.ReporterID != nil {
+			userIDsMap[*t.ReporterID] = struct{}{}
+		}
+		if t.StatusID != nil {
+			statusIDsMap[*t.StatusID] = struct{}{}
+		}
+		if t.PriorityID != nil {
+			priorityIDsMap[*t.PriorityID] = struct{}{}
+		}
+	}
+
+	// Загружаем пользователей
+	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+	if err != nil {
+		return nil, err
+	}
+	usersMap := make(map[uuid.UUID]user.User, len(users))
+	for _, u := range users {
+		usersMap[u.ID] = u
+	}
+
+	// Загружаем статусы
+	statusIDs := make([]uint, 0, len(statusIDsMap))
+	for id := range statusIDsMap {
+		statusIDs = append(statusIDs, id)
+	}
+	statuses, err := s.statusRepo.GetListByIDs(ctxT, statusIDs)
+	if err != nil {
+		return nil, err
+	}
+	statusesMap := make(map[uint]status.Status, len(statuses))
+	for _, st := range statuses {
+		statusesMap[st.ID] = st
+	}
+
+	// Загружаем приоритеты
+	priorityIDs := make([]uint, 0, len(priorityIDsMap))
+	for id := range priorityIDsMap {
+		priorityIDs = append(priorityIDs, id)
+	}
+	priorities, err := s.priorityRepo.GetListByIDs(ctxT, priorityIDs)
+	if err != nil {
+		return nil, err
+	}
+	prioritiesMap := make(map[uint]priority.Priority, len(priorities))
+	for _, p := range priorities {
+		prioritiesMap[p.ID] = p
+	}
+
+	// Собираем ответ
+	response := make([]TaskResponse, len(tasks))
+	for i, t := range tasks {
+		response[i] = TaskResponse{
+			ID:          t.ID,
+			CreatedAt:   t.CreatedAt,
+			UpdatedAt:   t.UpdatedAt,
+			Title:       t.Title,
+			Description: t.Description,
+			ProjectID:   t.ProjectID,
+			IsArchive:   t.IsArchive,
+		}
+		if t.Deadline != nil {
+			formatted := t.Deadline.Format("2006-01-02")
+			response[i].Deadline = &formatted
+		}
+
+		if t.AssigneeID != nil {
+			if u, ok := usersMap[*t.AssigneeID]; ok {
+				response[i].Assignee = &TaskUserResponse{ID: u.ID,
+					Name:  u.Name,
+					Email: u.Email,
+				}
+			} else {
+				return nil, ErrDataIntegrity
+			}
+		}
+
+		if t.ReporterID != nil {
+			if u, ok := usersMap[*t.ReporterID]; ok {
+				response[i].Reporter = &TaskUserResponse{
+					ID:    u.ID,
+					Name:  u.Name,
+					Email: u.Email,
+				}
+			} else {
+				return nil, ErrDataIntegrity
+			}
+		}
+
+		if t.StatusID != nil {
+			if st, ok := statusesMap[*t.StatusID]; ok {
+				response[i].Status = &TaskStatusResponse{
+					ID:         st.ID,
+					Name:       st.Name,
+					Color:      st.Color,
+					OrderIndex: st.OrderIndex,
+				}
+			} else {
+				return nil, ErrDataIntegrity
+			}
+		}
+
+		if t.PriorityID != nil {
+			if p, ok := prioritiesMap[*t.PriorityID]; ok {
+				response[i].Priority = &TaskPriorityResponse{
+					ID:    p.ID,
+					Title: p.Title,
+					Color: p.Color,
+				}
+			} else {
+				return nil, ErrDataIntegrity
+			}
+		}
+	}
+
+	return response, nil
+}
+
+func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param) ([]TaskResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	var tasks []Task
+	var err error
+	archived := false
+	if param.Archived == "true" {
+		archived = true
+	}
+	if param.UserParam == "assignee" {
+		tasks, err = s.repo.GetByAssigneeID(ctxT, userID, archived)
+		if err != nil {
+			return nil, err
+		}
+	} else if param.UserParam == "reporter" {
+		tasks, err = s.repo.GetByReporterID(ctxT, userID, archived)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Собираем уникальные ID
@@ -503,6 +668,9 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 
 			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, ErrAssigneeNotInProject
+			}
+			if assignee.Role == "read_only" {
+				return nil, ErrInvalidAssigneeRole
 			}
 		}
 		taskNew.AssigneeID = req.AssigneeID.Value

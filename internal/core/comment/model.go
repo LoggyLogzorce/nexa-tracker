@@ -1,6 +1,8 @@
 package comment
 
 import (
+	"nexa-task-tracker/internal/core/task"
+	"nexa-task-tracker/internal/core/user"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,9 +12,11 @@ type Comment struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 
-	UserID  uuid.UUID `gorm:"type:uuid" json:"user_id"`
-	TaskID  uint      `gorm:"not null" json:"task_id"`
+	UserID  uuid.UUID `gorm:"type:uuid;constraint:OnDelete:SET NULL" json:"user_id"`
+	TaskID  uint      `gorm:"not null;constraint:OnDelete:CASCADE" json:"task_id"`
 	Content string    `gorm:"not null;type:text" json:"content"`
+	User    user.User `gorm:"foreignKey:UserID" json:"-"`
+	Task    task.Task `gorm:"foreignKey:TaskID" json:"-"`
 }
 
 type CommentResponse struct {

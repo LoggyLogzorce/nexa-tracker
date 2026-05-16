@@ -1,0 +1,22 @@
+.hint { font-size: 0.8125rem; color: #94a3b8; margin: 0; }
+.hintError { font-size: 0.8125rem; color: #dc2626; margin: 0; }
+.results { border: 1px solid #e2e8f0; border-radius: 0.375rem; overflow: hidden; max-height: 200px; overflow-y: auto; }
+.resultItem { display: flex; align-items: center; width: 100%; padding: 0.5rem 0.75rem; border: none; background: none; cursor: pointer; text-align: left; }
+.resultItem:hover { background: #f8fafc; }
+.resultItem + .resultItem { border-top: 1px solid #f1f5f9; }
+.resultInfo { display: flex; flex-direction: column; gap: 0.125rem; }
+.resultName { font-size: 0.8125rem; font-weight: 500; color: #1e293b; }
+.resultEmail { font-size: 0.75rem; color: #94a3b8; }
+.selected { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.375rem; background: #f8fafc; }
+.selectedInfo { display: flex; flex-direction: column; gap: 0.125rem; }
+.selectedName { font-size: 0.8125rem; font-weight: 500; color: #1e293b; }
+.selectedEmail { font-size: 0.75rem; color: #94a3b8; }
+.selectedRemove { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border: none; background: none; color: #94a3b8; border-radius: 0.25rem; cursor: pointer; }
+.selectedRemove:hover { background: #f1f5f9; color: #dc2626; }
+.selectedRemoveIcon { width: 14px; height: 14px; }
+.roleSelector { }
+.roleLabel { font-size: 0.8125rem; font-weight: 500; color: #334151; margin: 0 0 0.5rem; }
+.roleOptions { display: flex; gap: 0.5rem; }
+.roleOption { display: flex; align-items: center; gap: 0.375rem; padding: 0.5rem 0.75rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; font-size: 0.8125rem; color: #475569; cursor: pointer; transition: 0.15s; flex: 1; justify-content: center; }
+.roleOption input { display: none; }
+.roleActive { border-color: #2563eb; background: #eff6ff; color: #2563eb; font-weight: 500; }

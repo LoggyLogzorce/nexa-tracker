@@ -59,13 +59,14 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 4. Вызвать сервис
-	if err := h.service.Create(c.Request.Context(), project, userID.(uuid.UUID)); err != nil {
+	projectNew, err := h.service.Create(c.Request.Context(), project, userID.(uuid.UUID))
+	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to create project")
 		return
 	}
 
 	// 5. Вернуть созданный проект
-	response.Success(c, http.StatusCreated, project)
+	response.Success(c, http.StatusCreated, projectNew)
 }
 
 func (h *Handler) GetByID(c *gin.Context) {

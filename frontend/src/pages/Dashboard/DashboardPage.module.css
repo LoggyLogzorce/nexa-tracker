@@ -12,3 +12,4 @@
 .addCard:hover { border-color: #cbd5e1; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
 .addCardContent { display: flex; flex-direction: column; align-items: center; color: #64748b; }
 .addIcon { width: 48px; height: 48px; margin-bottom: 0.75rem; color: #cbd5e1; }
+.loading { text-align: center; color: #64748b; font-size: 0.875rem; padding: 3rem 0; }

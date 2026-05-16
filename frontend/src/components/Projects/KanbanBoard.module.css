@@ -1,0 +1,2 @@
+.board { display: flex; gap: 1rem; overflow-x: auto; padding-bottom: 1rem; min-width: max-content; }
+.overlay { width: 18rem; cursor: grabbing; }

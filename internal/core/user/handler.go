@@ -135,6 +135,22 @@ func validateName(name string) bool {
 	return matched
 }
 
+func (h *Handler) SearchUsers(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		response.Error(c, http.StatusBadRequest, "query parameter 'q' is required")
+		return
+	}
+
+	users, err := h.service.SearchByEmail(c.Request.Context(), query)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to search users")
+		return
+	}
+
+	response.Success(c, http.StatusOK, users)
+}
+
 func (h *Handler) DeleteMe(c *gin.Context) {
 	// 1. Получить user_id из контекста
 	userID, exists := c.Get(ctxkeys.UserIDKey)

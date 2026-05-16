@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/useAuth';
 import styles from './Sidebar.module.css';
 
 const navItems = [
@@ -10,6 +11,7 @@ const navItems = [
 interface Props { isOpen?: boolean; onClose?: () => void; collapsed?: boolean; onToggleCollapse?: () => void; }
 
 export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }: Props) {
+    const { logout } = useAuth();
     return (
         <>
             {isOpen && <div className={styles.overlay} onClick={onClose} />}
@@ -38,7 +40,7 @@ export default function Sidebar({ isOpen, onClose, collapsed, onToggleCollapse }
                     </svg>
                     <span>Настройки</span>
                 </NavLink>
-                <button className={`${styles.navItem} ${styles.logout}`}>
+                <button className={`${styles.navItem} ${styles.logout}`} onClick={logout}>
                     <svg className={styles.navIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
                     </svg>

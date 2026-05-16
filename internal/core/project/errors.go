@@ -8,4 +8,5 @@ var (
 	ErrGetOwner            = errors.New("error getting owner")
 	ErrInvalidStatus       = errors.New("invalid status")
 	ErrInvalidPriority     = errors.New("invalid priority")
+	ErrDataIntegrity       = errors.New("data integrity error")
 )
