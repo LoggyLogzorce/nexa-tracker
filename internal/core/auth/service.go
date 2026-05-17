@@ -238,7 +238,7 @@ func (s *service) Logout(ctx context.Context, refreshToken string) error {
 	// Хешировать refresh token для поиска в БД
 	tokenHash := hash.TokenHash(refreshToken)
 
-	// Отозвать refresh token в БДctxT,
+	// Отозвать refresh token в БД
 	return s.repo.RevokeRefreshToken(ctxT, tokenHash)
 }
 

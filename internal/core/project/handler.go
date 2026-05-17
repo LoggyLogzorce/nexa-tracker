@@ -122,6 +122,28 @@ func (h *Handler) List(c *gin.Context) {
 	response.Success(c, http.StatusOK, projects)
 }
 
+func (h *Handler) Search(c *gin.Context) {
+	q := c.Query("q")
+	if q == "" {
+		response.Error(c, http.StatusBadRequest, "query parameter 'q' is required")
+		return
+	}
+
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	projects, err := h.service.Search(c.Request.Context(), q, userID.(uuid.UUID))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to search projects")
+		return
+	}
+
+	response.Success(c, http.StatusOK, projects)
+}
+
 func (h *Handler) ListOwned(c *gin.Context) {
 	userID, exists := c.Get(ctxkeys.UserIDKey)
 	if !exists {

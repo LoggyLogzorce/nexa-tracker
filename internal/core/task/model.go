@@ -43,7 +43,8 @@ type TaskResponse struct {
 	Description *string `json:"description"`
 	Deadline    *string `json:"deadline"`
 
-	ProjectID uuid.UUID `json:"project_id"`
+	ProjectID    uuid.UUID `json:"project_id"`
+	ProjectTitle string    `json:"project_title"`
 
 	Status   *TaskStatusResponse   `json:"status"`
 	Priority *TaskPriorityResponse `json:"priority"`

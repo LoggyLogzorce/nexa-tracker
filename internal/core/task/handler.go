@@ -268,6 +268,28 @@ func (h *Handler) Delete(c *gin.Context) {
 	response.Success(c, http.StatusOK, "task deleted")
 }
 
+func (h *Handler) Search(c *gin.Context) {
+	q := c.Query("q")
+	if q == "" {
+		response.Error(c, http.StatusBadRequest, "query parameter 'q' is required")
+		return
+	}
+
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	tasks, err := h.service.Search(c.Request.Context(), q, userID.(uuid.UUID))
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to search tasks")
+		return
+	}
+
+	response.Success(c, http.StatusOK, tasks)
+}
+
 func (h *Handler) GetHistoryByTaskID(c *gin.Context) {
 	tId := c.Param("task_id")
 	taskID, err := strconv.ParseUint(tId, 10, 64)

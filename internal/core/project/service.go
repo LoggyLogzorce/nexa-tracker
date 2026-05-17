@@ -18,6 +18,7 @@ type Service interface {
 	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error)
 	List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
 	ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
+	Search(ctx context.Context, q string, userID uuid.UUID) ([]ProjectResponse, error)
 	Update(ctx context.Context, project UpdateProjectRequest, userID, projectID uuid.UUID) (*ProjectResponse, error)
 	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
@@ -339,6 +340,50 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 		}
 
 		responses = append(responses, resp)
+	}
+
+	return responses, nil
+}
+
+func (s *service) Search(ctx context.Context, q string, userID uuid.UUID) ([]ProjectResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if len(q) < 2 {
+		return []ProjectResponse{}, nil
+	}
+
+	projects, err := s.repo.Search(ctxT, q, userID, 10)
+	if err != nil {
+		return nil, err
+	}
+
+	responses := make([]ProjectResponse, len(projects))
+	for i, p := range projects {
+		resp := ProjectResponse{
+			ID:          p.ID,
+			Title:       p.Title,
+			Description: p.Description,
+			CreatedAt:   p.CreatedAt,
+			Status:      p.Status,
+			Priority:    p.Priority,
+		}
+
+		if p.OwnerID == userID {
+			resp.UserRole = "owner"
+		} else {
+			resp.UserRole = "member"
+		}
+
+		owner, err := s.userRepo.GetByID(ctxT, p.OwnerID)
+		if err == nil {
+			resp.Owner.ID = owner.ID
+			resp.Owner.Name = owner.Name
+			resp.Owner.Email = owner.Email
+			resp.Owner.AvatarUrl = owner.AvatarUrl
+		}
+
+		responses[i] = resp
 	}
 
 	return responses, nil

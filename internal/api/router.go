@@ -110,6 +110,9 @@ func (r *Router) Setup() *gin.Engine {
 			}
 
 			protected.GET("/tasks/me", r.handlers.TaskHdl.GetByUserID)
+			protected.GET("/tasks/search", r.handlers.TaskHdl.Search)
+
+			protected.GET("/projects/search", r.handlers.ProjectHdl.Search)
 
 			// Project routes
 			projects := protected.Group("/projects")

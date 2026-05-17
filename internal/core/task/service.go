@@ -21,6 +21,7 @@ type Service interface {
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param Param) ([]TaskResponse, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID, param Param) ([]TaskResponse, error)
+	Search(ctx context.Context, q string, userID uuid.UUID) ([]TaskResponse, error)
 	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error)
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 
@@ -582,6 +583,140 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 				}
 			} else {
 				return nil, ErrDataIntegrity
+			}
+		}
+	}
+
+	return response, nil
+}
+
+func (s *service) Search(ctx context.Context, q string, userID uuid.UUID) ([]TaskResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	if len(q) < 2 {
+		return []TaskResponse{}, nil
+	}
+
+	participants, err := s.participantRepo.GetByUserID(ctxT, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	projectIDs := make([]uuid.UUID, len(participants))
+	for i, p := range participants {
+		projectIDs[i] = p.ProjectID
+	}
+
+	ownedProjects, err := s.projectRepo.ListByOwner(ctxT, userID)
+	if err != nil {
+		return nil, err
+	}
+	ownedMap := make(map[uuid.UUID]bool)
+	for _, p := range ownedProjects {
+		ownedMap[p.ID] = true
+		found := false
+		for _, id := range projectIDs {
+			if id == p.ID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			projectIDs = append(projectIDs, p.ID)
+		}
+	}
+
+	if len(projectIDs) == 0 {
+		return []TaskResponse{}, nil
+	}
+
+	tasks, err := s.repo.Search(ctxT, q, projectIDs, 10)
+	if err != nil {
+		return nil, err
+	}
+
+	projectTitleMap := make(map[uuid.UUID]string, len(ownedProjects))
+	for _, p := range ownedProjects {
+		projectTitleMap[p.ID] = p.Title
+	}
+	for _, p := range participants {
+		projectTitleMap[p.ProjectID] = ""
+	}
+
+	projectIDsForFetch := make([]uuid.UUID, 0)
+	for _, t := range tasks {
+		if _, ok := projectTitleMap[t.ProjectID]; !ok {
+			projectIDsForFetch = append(projectIDsForFetch, t.ProjectID)
+		}
+	}
+	if len(projectIDsForFetch) > 0 {
+		for _, pID := range projectIDsForFetch {
+			p, err := s.projectRepo.GetByID(ctxT, pID)
+			if err == nil {
+				projectTitleMap[pID] = p.Title
+			}
+		}
+	}
+
+	userIDsMap := make(map[uuid.UUID]struct{})
+	for _, t := range tasks {
+		if t.AssigneeID != nil {
+			userIDsMap[*t.AssigneeID] = struct{}{}
+		}
+		if t.ReporterID != nil {
+			userIDsMap[*t.ReporterID] = struct{}{}
+		}
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+	usersMap := make(map[uuid.UUID]user.User)
+	if len(userIDs) > 0 {
+		users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+		if err == nil {
+			for _, u := range users {
+				usersMap[u.ID] = u
+			}
+		}
+	}
+
+	response := make([]TaskResponse, len(tasks))
+	for i, t := range tasks {
+		response[i] = TaskResponse{
+			ID:           t.ID,
+			CreatedAt:    t.CreatedAt,
+			UpdatedAt:    t.UpdatedAt,
+			Title:        t.Title,
+			Description:  t.Description,
+			ProjectID:    t.ProjectID,
+			ProjectTitle: projectTitleMap[t.ProjectID],
+			IsArchive:    t.IsArchive,
+		}
+		if t.Deadline != nil {
+			formatted := t.Deadline.Format("2006-01-02")
+			response[i].Deadline = &formatted
+		}
+		if t.AssigneeID != nil {
+			if u, ok := usersMap[*t.AssigneeID]; ok {
+				response[i].Assignee = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
+				}
+			}
+		}
+		if t.ReporterID != nil {
+			if u, ok := usersMap[*t.ReporterID]; ok {
+				response[i].Reporter = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
+				}
 			}
 		}
 	}

@@ -11,6 +11,7 @@ type Repository interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*Project, error)
 	ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Project, error)
 	ListByParticipant(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) ([]Project, error)
+	Search(ctx context.Context, q string, userID uuid.UUID, limit int) ([]Project, error)
 	Update(ctx context.Context, project *Project) error
 	Delete(ctx context.Context, id uuid.UUID) error
 }
@@ -47,6 +48,15 @@ func (r *repository) ListByOwner(ctx context.Context, ownerID uuid.UUID) ([]Proj
 func (r *repository) ListByParticipant(ctx context.Context, userID uuid.UUID, projectIDs []uuid.UUID) ([]Project, error) {
 	var projects []Project
 	err := r.db.WithContext(ctx).Where("owner_id = ? OR id IN ?", userID, projectIDs).Find(&projects).Error
+	return projects, err
+}
+
+func (r *repository) Search(ctx context.Context, q string, userID uuid.UUID, limit int) ([]Project, error) {
+	var projects []Project
+	err := r.db.WithContext(ctx).
+		Where("(owner_id = ? OR id IN (SELECT project_id FROM project_participants WHERE user_id = ?)) AND title ILIKE ?", userID, userID, "%"+q+"%").
+		Limit(limit).
+		Find(&projects).Error
 	return projects, err
 }
 

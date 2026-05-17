@@ -2,9 +2,22 @@
 .mobileBtn { display: none; background: none; border: none; color: #64748b; cursor: pointer; }
 .icon { width: 20px; height: 20px; }
 .search { display: flex; align-items: center; flex: 1; max-width: 512px; margin-left: 1rem; position: relative; }
-.searchIcon { position: absolute; left: 12px; color: #94a3b8; width: 20px; height: 20px; }
+.searchIcon { position: absolute; left: 12px; color: #94a3b8; width: 20px; height: 20px; z-index: 1; }
 .search input { width: 100%; padding: 0.5rem 1rem 0.5rem 2.5rem; border: 1px solid #e2e8f0; border-radius: 0.5rem; background: #f8fafc; font-size: 0.875rem; }
 .search input:focus { outline: none; background: #fff; border-color: #0ea5e9; box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.2); }
+.searchSpinner { position: absolute; right: 12px; width: 16px; height: 16px; border: 2px solid #e2e8f0; border-top-color: #0ea5e9; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.dropdown { position: absolute; top: 100%; left: 0; right: 0; margin-top: 0.5rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 0.75rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); z-index: 100; max-height: 400px; overflow-y: auto; }
+.section { padding: 0.5rem; }
+.section + .section { border-top: 1px solid #f1f5f9; }
+.sectionTitle { padding: 0.25rem 0.5rem; font-size: 0.6875rem; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+.resultItem { display: flex; align-items: center; gap: 0.5rem; width: 100%; padding: 0.5rem; border: none; background: none; border-radius: 0.375rem; cursor: pointer; font-size: 0.8125rem; color: #334155; text-align: left; }
+.resultItem:hover { background: #f8fafc; }
+.resultIcon { flex-shrink: 0; color: #94a3b8; }
+.taskId { font-size: 0.75rem; color: #94a3b8; font-weight: 500; flex-shrink: 0; }
+.taskInfo { display: flex; flex-direction: column; min-width: 0; }
+.taskTitle { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.taskProject { font-size: 0.6875rem; color: #94a3b8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .actions { display: flex; align-items: center; gap: 1rem; }
 .notifWrap { position: relative; }
 .notifBtn { background: none; border: none; color: #94a3b8; cursor: pointer; position: relative; padding: 0.5rem; }

@@ -306,6 +306,17 @@ export const getTasksByUserApi = async (type: 'assigned' | 'reported'): Promise<
     return extractData(response.data);
 };
 
+// Search
+export const searchTasksApi = async (q: string): Promise<Task[]> => {
+    const response = await client.get<ApiResponse<Task[]>>(`/tasks/search?q=${encodeURIComponent(q)}`);
+    return extractData(response.data);
+};
+
+export const searchProjectsApi = async (q: string): Promise<Project[]> => {
+    const response = await client.get<ApiResponse<Project[]>>(`/projects/search?q=${encodeURIComponent(q)}`);
+    return extractData(response.data);
+};
+
 // Standalone statuses and priorities (if needed separately from project)
 export const getProjectStatusesApi = async (projectId: string): Promise<CustomStatus[]> => {
     const response = await client.get<ApiResponse<CustomStatus[]>>(`/projects/${projectId}/statuses`);

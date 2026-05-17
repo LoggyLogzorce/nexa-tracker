@@ -26,6 +26,7 @@ export interface Task {
     description: string;
     deadline: string | null;
     project_id: string;
+    project_title?: string;
     status: TaskStatus;
     priority: TaskPriority;
     assignee: TaskUser | null;

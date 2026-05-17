@@ -13,6 +13,7 @@ type Repository interface {
 	GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]Task, error)
 	GetByAssigneeID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error)
 	GetByReporterID(ctx context.Context, uID uuid.UUID, archived bool) ([]Task, error)
+	Search(ctx context.Context, q string, projectIDs []uuid.UUID, limit int) ([]Task, error)
 	Update(ctx context.Context, task *Task, history *UpdateHistory) error
 	Delete(ctx context.Context, id uint) error
 
@@ -58,6 +59,17 @@ func (r *repository) GetByReporterID(ctx context.Context, uID uuid.UUID, archive
 	var tasks []Task
 	err := r.db.WithContext(ctx).
 		Where("reporter_id = ? and is_archive = ?", uID, archived).
+		Find(&tasks).Error
+	return tasks, err
+}
+
+func (r *repository) Search(ctx context.Context, q string, projectIDs []uuid.UUID, limit int) ([]Task, error) {
+	var tasks []Task
+	err := r.db.WithContext(ctx).
+		Where("is_archive = ?", false).
+		Where("project_id IN ?", projectIDs).
+		Where("title ILIKE ?", "%"+q+"%").
+		Limit(limit).
 		Find(&tasks).Error
 	return tasks, err
 }

@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/useAuth';
+import { searchTasksApi, searchProjectsApi } from '../../api/projects';
+import type { Task } from '../../types/task';
+import type { Project } from '../../types/project';
 import Avatar from '../UI/Avatar';
 import styles from './Header.module.css';
 
@@ -8,16 +11,117 @@ interface Props { onToggleSidebar?: () => void; }
 
 export default function Header({ onToggleSidebar }: Props) {
     const { user } = useAuth();
+    const navigate = useNavigate();
     const [notifOpen, setNotifOpen] = useState(false);
+    const [query, setQuery] = useState('');
+    const [tasks, setTasks] = useState<Task[]>([]);
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [open, setOpen] = useState(false);
+    const [loading, setLoading] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLInputElement>(null);
+
+    const doSearch = useCallback(async (q: string) => {
+        if (q.length < 2) {
+            setTasks([]);
+            setProjects([]);
+            setOpen(false);
+            return;
+        }
+        setLoading(true);
+        try {
+            const [t, p] = await Promise.all([
+                searchTasksApi(q),
+                searchProjectsApi(q),
+            ]);
+            setTasks(t);
+            setProjects(p);
+            setOpen(t.length > 0 || p.length > 0);
+        } catch {
+            setTasks([]);
+            setProjects([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => doSearch(query), 300);
+        return () => clearTimeout(timer);
+    }, [query, doSearch]);
+
+    useEffect(() => {
+        const handleClick = (e: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+                setOpen(false);
+            }
+        };
+        const handleEsc = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                setOpen(false);
+                inputRef.current?.blur();
+            }
+        };
+        document.addEventListener('mousedown', handleClick);
+        document.addEventListener('keydown', handleEsc);
+        return () => {
+            document.removeEventListener('mousedown', handleClick);
+            document.removeEventListener('keydown', handleEsc);
+        };
+    }, []);
+
+    const handleSelect = () => {
+        setQuery('');
+        setTasks([]);
+        setProjects([]);
+        setOpen(false);
+    };
 
     return (
         <header className={styles.header}>
             <button className={styles.mobileBtn} onClick={onToggleSidebar}>
                 <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16"/></svg>
             </button>
-            <div className={styles.search}>
+            <div className={styles.search} ref={searchRef}>
                 <svg className={styles.searchIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <input type="text" placeholder="Поиск задач, проектов..." />
+                <input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="Поиск задач, проектов..."
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
+                    onFocus={() => { if (tasks.length > 0 || projects.length > 0) setOpen(true); }}
+                />
+                {loading && <span className={styles.searchSpinner} />}
+                {open && (
+                    <div className={styles.dropdown}>
+                        {projects.length > 0 && (
+                            <div className={styles.section}>
+                                <div className={styles.sectionTitle}>Проекты</div>
+                                {projects.map(p => (
+                                    <button key={p.id} className={styles.resultItem} onClick={() => { navigate(`/projects/${p.id}`); handleSelect(); }}>
+                                        <svg className={styles.resultIcon} width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
+                                        <span>{p.title}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {tasks.length > 0 && (
+                            <div className={styles.section}>
+                                <div className={styles.sectionTitle}>Задачи</div>
+                                {tasks.map(t => (
+                                    <button key={t.id} className={styles.resultItem} onClick={() => { navigate(`/projects/${t.project_id}/tasks/${t.id}`); handleSelect(); }}>
+                                        <span className={styles.taskId}>#{t.id}</span>
+                                        <div className={styles.taskInfo}>
+                                            <span className={styles.taskTitle}>{t.title}</span>
+                                            {t.project_title && <span className={styles.taskProject}>{t.project_title}</span>}
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
             <div className={styles.actions}>
                 <div className={styles.notifWrap}>
