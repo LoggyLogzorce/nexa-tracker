@@ -137,10 +137,10 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 		}
 		for _, u := range users {
 			if task.AssigneeID != nil && *task.AssigneeID == u.ID {
-				taskRes.Assignee = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+				taskRes.Assignee = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email, AvatarUrl: u.AvatarUrl}
 			}
 			if task.ReporterID != nil && *task.ReporterID == u.ID {
-				taskRes.Reporter = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+				taskRes.Reporter = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email, AvatarUrl: u.AvatarUrl}
 			}
 		}
 	}
@@ -266,17 +266,19 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 
 	if task.AssigneeID != nil {
 		taskRes.Assignee = &TaskUserResponse{
-			ID:    usersMap[*task.AssigneeID].ID,
-			Name:  usersMap[*task.AssigneeID].Name,
-			Email: usersMap[*task.AssigneeID].Email,
+			ID:        usersMap[*task.AssigneeID].ID,
+			Name:      usersMap[*task.AssigneeID].Name,
+			Email:     usersMap[*task.AssigneeID].Email,
+			AvatarUrl: usersMap[*task.AssigneeID].AvatarUrl,
 		}
 	}
 
 	if task.ReporterID != nil {
 		taskRes.Reporter = &TaskUserResponse{
-			ID:    usersMap[*task.ReporterID].ID,
-			Name:  usersMap[*task.ReporterID].Name,
-			Email: usersMap[*task.ReporterID].Email,
+			ID:        usersMap[*task.ReporterID].ID,
+			Name:      usersMap[*task.ReporterID].Name,
+			Email:     usersMap[*task.ReporterID].Email,
+			AvatarUrl: usersMap[*task.ReporterID].AvatarUrl,
 		}
 	}
 
@@ -378,9 +380,11 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 
 		if t.AssigneeID != nil {
 			if u, ok := usersMap[*t.AssigneeID]; ok {
-				response[i].Assignee = &TaskUserResponse{ID: u.ID,
-					Name:  u.Name,
-					Email: u.Email,
+				response[i].Assignee = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
 				}
 			} else {
 				return nil, ErrDataIntegrity
@@ -390,9 +394,10 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 		if t.ReporterID != nil {
 			if u, ok := usersMap[*t.ReporterID]; ok {
 				response[i].Reporter = &TaskUserResponse{
-					ID:    u.ID,
-					Name:  u.Name,
-					Email: u.Email,
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
 				}
 			} else {
 				return nil, ErrDataIntegrity
@@ -438,12 +443,12 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 	if param.Archived == "true" {
 		archived = true
 	}
-	if param.UserParam == "assignee" {
+	if param.UserParam == "assigned" {
 		tasks, err = s.repo.GetByAssigneeID(ctxT, userID, archived)
 		if err != nil {
 			return nil, err
 		}
-	} else if param.UserParam == "reporter" {
+	} else if param.UserParam == "reported" {
 		tasks, err = s.repo.GetByReporterID(ctxT, userID, archived)
 		if err != nil {
 			return nil, err
@@ -531,9 +536,11 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 
 		if t.AssigneeID != nil {
 			if u, ok := usersMap[*t.AssigneeID]; ok {
-				response[i].Assignee = &TaskUserResponse{ID: u.ID,
-					Name:  u.Name,
-					Email: u.Email,
+				response[i].Assignee = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
 				}
 			} else {
 				return nil, ErrDataIntegrity
@@ -543,9 +550,10 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 		if t.ReporterID != nil {
 			if u, ok := usersMap[*t.ReporterID]; ok {
 				response[i].Reporter = &TaskUserResponse{
-					ID:    u.ID,
-					Name:  u.Name,
-					Email: u.Email,
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
 				}
 			} else {
 				return nil, ErrDataIntegrity
@@ -640,6 +648,24 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		}
 		taskNew.StatusID = req.StatusID.Value
 		changes = append(changes, FieldChange{"status", taskOld.StatusID, taskNew.StatusID})
+	} else {
+		if taskOld.StatusID != nil {
+			st, err := s.statusRepo.GetByID(ctxT, *taskOld.StatusID)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrStatusNotInProject
+			}
+			if err != nil {
+				return nil, err
+			}
+			taskRes.Status = &TaskStatusResponse{
+				ID:         st.ID,
+				Name:       st.Name,
+				Color:      st.Color,
+				OrderIndex: st.OrderIndex,
+			}
+			taskNew.StatusID = taskOld.StatusID
+			changes = append(changes, FieldChange{"status", taskOld.StatusID, taskNew.StatusID})
+		}
 	}
 	if req.PriorityID.Set {
 		if req.PriorityID.Value != nil {
@@ -658,19 +684,55 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		}
 		taskNew.PriorityID = req.PriorityID.Value
 		changes = append(changes, FieldChange{"priority", taskOld.PriorityID, taskNew.PriorityID})
+	} else {
+		if taskOld.PriorityID != nil {
+			pr, err := s.priorityRepo.GetByID(ctxT, *taskOld.PriorityID)
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrPriorityNotInProject
+			}
+			if err != nil {
+				return nil, err
+			}
+			taskRes.Priority = &TaskPriorityResponse{
+				ID:    pr.ID,
+				Title: pr.Title,
+				Color: pr.Color,
+			}
+			taskNew.PriorityID = taskOld.PriorityID
+			changes = append(changes, FieldChange{"priority", taskOld.PriorityID, taskNew.PriorityID})
+		}
 	}
 	if req.AssigneeID.Set {
 		if req.AssigneeID.Value != nil {
+			part := false
+			owner := false
 			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, taskNew.ProjectID, *req.AssigneeID.Value)
 			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
 			}
 
 			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrAssigneeNotInProject
-			}
-			if assignee.Role == "read_only" {
+				part = false
+			} else if assignee.Role == "member" {
+				part = true
+			} else {
 				return nil, ErrInvalidAssigneeRole
+			}
+
+			project, err := s.projectRepo.GetByID(ctxT, taskNew.ProjectID)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, err
+			}
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrProjectNotFound
+			}
+
+			if project.OwnerID == *req.AssigneeID.Value {
+				owner = true
+			}
+
+			if part == false && owner == false {
+				return nil, ErrAssigneeNotInProject
 			}
 		}
 		taskNew.AssigneeID = req.AssigneeID.Value
@@ -712,10 +774,20 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		}
 		for _, u := range users {
 			if taskNew.AssigneeID != nil && *taskNew.AssigneeID == u.ID {
-				taskRes.Assignee = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+				taskRes.Assignee = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
+				}
 			}
 			if taskNew.ReporterID != nil && *taskNew.ReporterID == u.ID {
-				taskRes.Reporter = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email}
+				taskRes.Reporter = &TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
+				}
 			}
 		}
 	}
@@ -780,8 +852,6 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	// TODO добавить middleware для проверки наличия задачи в проекте
-
 	history, err := s.repo.GetHistoryByTaskID(ctxT, taskID)
 	if err != nil {
 		return nil, err
@@ -819,9 +889,10 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 		}
 		if u, ok := usersMap[h.UserID]; ok {
 			response[i].User = TaskUserResponse{
-				ID:    u.ID,
-				Name:  u.Name,
-				Email: u.Email,
+				ID:        u.ID,
+				Name:      u.Name,
+				Email:     u.Email,
+				AvatarUrl: u.AvatarUrl,
 			}
 		} else {
 			return nil, ErrDataIntegrity

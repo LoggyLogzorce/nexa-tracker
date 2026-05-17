@@ -1,9 +1,13 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../../contexts/useAuth';
+import Avatar from '../UI/Avatar';
 import styles from './Header.module.css';
 
 interface Props { onToggleSidebar?: () => void; }
 
 export default function Header({ onToggleSidebar }: Props) {
+    const { user } = useAuth();
     const [notifOpen, setNotifOpen] = useState(false);
 
     return (
@@ -35,13 +39,13 @@ export default function Header({ onToggleSidebar }: Props) {
                         </div>
                     )}
                 </div>
-                <div className={styles.profile}>
-                    <div className={styles.userInfo}>
-                        <p className={styles.userName}>Алексей Смирнов</p>
-                        <p className={styles.userRole}>Senior Dev</p>
-                    </div>
-                    <img src="/avatar.png" alt="Avatar" className={styles.avatar} />
-                </div>
+                    <Link to="/profile" className={styles.profile}>
+                        <div className={styles.userInfo}>
+                            <p className={styles.userName}>{user?.name || 'Пользователь'}</p>
+                            {user?.role && <p className={styles.userRole}>{user.role}</p>}
+                        </div>
+                        <Avatar name={user?.name || '?'} avatarUrl={user?.avatar_url} size={40} />
+                    </Link>
             </div>
         </header>
     );

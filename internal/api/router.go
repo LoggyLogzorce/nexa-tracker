@@ -32,17 +32,19 @@ type Router struct {
 	engine          *gin.Engine
 	jwtSecret       string
 	corsOrigins     []string
+	uploadPath      string
 	projectRepo     project.Repository
 	participantRepo participant.Repository
 	taskRepo        task.Repository
 }
 
-func NewRouter(h Handlers, jwtSecret string, corsOrigins []string, projectRepo project.Repository, participantRepo participant.Repository, taskRepo task.Repository) *Router {
+func NewRouter(h Handlers, jwtSecret string, corsOrigins []string, uploadPath string, projectRepo project.Repository, participantRepo participant.Repository, taskRepo task.Repository) *Router {
 	return &Router{
 		handlers:        h,
 		engine:          gin.Default(),
 		jwtSecret:       jwtSecret,
 		corsOrigins:     corsOrigins,
+		uploadPath:      uploadPath,
 		projectRepo:     projectRepo,
 		participantRepo: participantRepo,
 		taskRepo:        taskRepo,
@@ -66,6 +68,9 @@ func (r *Router) Setup() *gin.Engine {
 	r.engine.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})
 	})
+
+	// Serve uploaded files as static (avatars, etc.)
+	r.engine.Static("./uploads", r.uploadPath)
 
 	// API v1
 	v1 := r.engine.Group("/api/v1")
@@ -99,6 +104,7 @@ func (r *Router) Setup() *gin.Engine {
 			{
 				users.GET("/me", r.handlers.UserHdl.GetMe)
 				users.PUT("/me", r.handlers.UserHdl.UpdateMe)
+				users.PUT("/me/avatar", r.handlers.UserHdl.UploadAvatar)
 				users.DELETE("/me", r.handlers.UserHdl.DeleteMe)
 				users.GET("/search", r.handlers.UserHdl.SearchUsers)
 			}

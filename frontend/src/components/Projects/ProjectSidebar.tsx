@@ -7,14 +7,17 @@ interface Props {
     members: ProjectMember[];
     attachments: Attachment[];
     open: boolean;
+    projectId: string;
     onAddMember?: () => void;
+    onRoleChange?: (member: ProjectMember, role: string) => void;
+    onRemoveMember?: (member: ProjectMember) => void;
 }
 
-export default function ProjectSidebar({ members, attachments, open, onAddMember }: Props) {
+export default function ProjectSidebar({ members, attachments, open, projectId, onAddMember, onRoleChange, onRemoveMember }: Props) {
     return (
         <aside className={`${styles.sidebar} ${open ? styles.open : ''}`}>
-            <TeamMembers members={members} onAddMember={onAddMember} />
-            <Attachments attachments={attachments} />
+            <TeamMembers members={members} onAddMember={onAddMember} onRoleChange={onRoleChange} onRemoveMember={onRemoveMember} />
+            <Attachments attachments={attachments} projectId={projectId} />
         </aside>
     );
 }

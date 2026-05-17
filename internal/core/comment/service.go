@@ -10,10 +10,10 @@ import (
 )
 
 type Service interface {
-	Create(ctx context.Context, comment *Comment) error
+	Create(ctx context.Context, comment *Comment) (*CommentResponse, error)
 	GetByID(ctx context.Context, id uint) (*Comment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]CommentResponse, error)
-	Update(ctx context.Context, comment *Comment) error
+	Update(ctx context.Context, comment *Comment) (*CommentResponse, error)
 	Delete(ctx context.Context, id, taskID uint, userID uuid.UUID) error
 }
 
@@ -29,13 +29,35 @@ func NewService(repo Repository, userRepo user.Repository) Service {
 	}
 }
 
-func (s *service) Create(ctx context.Context, comment *Comment) error {
+func (s *service) Create(ctx context.Context, comment *Comment) (*CommentResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	comment.CreatedAt = time.Now()
 
-	return s.repo.Create(ctxT, comment)
+	if err := s.repo.Create(ctxT, comment); err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.GetByID(ctxT, comment.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	commentRes := &CommentResponse{
+		ID:        comment.ID,
+		CreatedAt: comment.CreatedAt,
+		User: CommentUserResponse{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			AvatarUrl: user.AvatarUrl,
+		},
+		TaskID:  comment.TaskID,
+		Content: comment.Content,
+	}
+
+	return commentRes, err
 }
 
 func (s *service) GetByID(ctx context.Context, id uint) (*Comment, error) {
@@ -85,9 +107,10 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]CommentRespon
 		}
 		if u, ok := usersMap[comment.UserID]; ok {
 			response[i].User = CommentUserResponse{
-				ID:    u.ID,
-				Name:  u.Name,
-				Email: u.Email,
+				ID:        u.ID,
+				Name:      u.Name,
+				Email:     u.Email,
+				AvatarUrl: u.AvatarUrl,
 			}
 		}
 	}
@@ -95,29 +118,51 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]CommentRespon
 	return response, nil
 }
 
-func (s *service) Update(ctx context.Context, comment *Comment) error {
+func (s *service) Update(ctx context.Context, comment *Comment) (*CommentResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	commentOld, err := s.repo.GetByID(ctxT, comment.ID)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
+		return nil, err
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return ErrCommentNotFound
+		return nil, ErrCommentNotFound
 	}
 
 	if commentOld.TaskID != comment.TaskID {
-		return ErrCommentNotFound
+		return nil, ErrCommentNotFound
 	}
 	if commentOld.UserID != comment.UserID {
-		return ErrNotCommentOwner
+		return nil, ErrNotCommentOwner
 	}
 
 	comment.ID = commentOld.ID
 	comment.CreatedAt = commentOld.CreatedAt
 
-	return s.repo.Update(ctxT, comment)
+	if err := s.repo.Update(ctxT, comment); err != nil {
+		return nil, err
+	}
+
+	user, err := s.userRepo.GetByID(ctxT, comment.UserID)
+	if err != nil {
+		return nil, err
+	}
+
+	commentRes := &CommentResponse{
+		ID:        comment.ID,
+		CreatedAt: comment.CreatedAt,
+		User: CommentUserResponse{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			AvatarUrl: user.AvatarUrl,
+		},
+		TaskID:  comment.TaskID,
+		Content: comment.Content,
+	}
+
+	return commentRes, err
 }
 
 func (s *service) Delete(ctx context.Context, id, taskID uint, userID uuid.UUID) error {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import type { ProjectStatus, Priority } from '../../types/project';
 import modalStyles from '../Dashboard/Modal.module.css';
 
-interface Props { onClose: () => void; onSave: (data: { title: string; description: string; status: ProjectStatus; priority: Priority }) => void; }
+interface Props { onClose: () => void; onSave: (data: { title: string; description: string; status: ProjectStatus; priority: Priority }) => Promise<void>; }
 
 export default function CreateModal({ onClose, onSave }: Props) {
     const [title, setTitle] = useState('');
@@ -12,7 +12,7 @@ export default function CreateModal({ onClose, onSave }: Props) {
 
     useEffect(() => { const esc = (e: KeyboardEvent) => e.key === 'Escape' && onClose(); document.addEventListener('keydown', esc); return () => document.removeEventListener('keydown', esc); }, [onClose]);
 
-    const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSave({ title, description, status, priority }); };
+    const handleSubmit = async (e: React.FormEvent) => { e.preventDefault(); try { await onSave({ title, description, status, priority }); onClose(); } catch { /* ignored */ } };
 
     return (
         <div className={modalStyles.overlay} onClick={onClose}>
@@ -23,7 +23,7 @@ export default function CreateModal({ onClose, onSave }: Props) {
                         <input className={modalStyles.input} value={title} onChange={e => setTitle(e.target.value)} required placeholder="Название проекта" />
                     </label>
                     <label className={modalStyles.label}>Описание
-                        <textarea className={modalStyles.textarea} rows={3} value={description} onChange={e => setDescription(e.target.value)} required placeholder="Описание проекта" />
+                        <textarea className={modalStyles.textarea} rows={3} value={description} onChange={e => setDescription(e.target.value)} placeholder="Описание проекта" />
                     </label>
                     <div className={modalStyles.row}>
                         <label className={modalStyles.label}>Статус

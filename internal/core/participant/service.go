@@ -65,10 +65,11 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Pr
 			ProjectID: v.ProjectID,
 			Role:      v.Role,
 			User: struct {
-				UserID uuid.UUID `json:"user_id"`
-				Name   string    `json:"name"`
-				Email  string    `json:"email"`
-			}{UserID: v.UserID, Name: "", Email: ""},
+				UserID    uuid.UUID `json:"user_id"`
+				Name      string    `json:"name"`
+				Email     string    `json:"email"`
+				AvatarUrl string    `json:"avatar_url"`
+			}{UserID: v.UserID, Name: "", Email: "", AvatarUrl: ""},
 		}
 		userIds[e] = v.UserID
 	}
@@ -83,6 +84,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Pr
 			if participantsResponse[i].User.UserID == u.ID {
 				participantsResponse[i].User.Name = u.Name
 				participantsResponse[i].User.Email = u.Email
+				participantsResponse[i].User.AvatarUrl = u.AvatarUrl
 			}
 		}
 	}

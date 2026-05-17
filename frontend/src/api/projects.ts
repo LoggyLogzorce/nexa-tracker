@@ -1,6 +1,7 @@
 import client, { extractData } from './client';
 import type { Project, ProjectRole, ProjectOwner, ProjectStatus, Priority, CustomStatus, CustomPriority } from '../types/project';
 import type { Task, ProjectMember, Attachment } from '../types/task';
+import type { Comment } from '../types/comment';
 import type { ApiResponse } from '../types/auth';
 
 interface RawProject {
@@ -103,8 +104,10 @@ export const deleteProjectApi = async (id: string): Promise<void> => {
     await client.delete(`/projects/${id}`);
 };
 
-export const getProjectTasks = async (projectId: string): Promise<Task[]> => {
-    const response = await client.get<ApiResponse<Task[]>>(`/projects/${projectId}/tasks`);
+export const getProjectTasks = async (projectId: string, archived?: boolean): Promise<Task[]> => {
+    const response = await client.get<ApiResponse<Task[]>>(`/projects/${projectId}/tasks`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
     return extractData(response.data);
 };
 
@@ -156,6 +159,7 @@ export interface CreateTaskPayload {
     status_id?: number;
     priority_id?: number;
     assignee_id?: string | null;
+    is_archive?: boolean;
 }
 
 export const createTaskApi = async (projectId: string, data: CreateTaskPayload): Promise<Task> => {
@@ -163,8 +167,38 @@ export const createTaskApi = async (projectId: string, data: CreateTaskPayload):
     return extractData(response.data);
 };
 
-export const updateTaskApi = async (projectId: string, taskId: number, data: Partial<CreateTaskPayload>): Promise<Task> => {
-    const response = await client.put<ApiResponse<Task>>(`/projects/${projectId}/tasks/${taskId}`, data);
+export const updateTaskApi = async (projectId: string, taskId: number, data: Partial<CreateTaskPayload>, archived?: boolean): Promise<Task> => {
+    const response = await client.put<ApiResponse<Task>>(`/projects/${projectId}/tasks/${taskId}`, data, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const getTaskById = async (projectId: string, taskId: number, archived?: boolean): Promise<Task> => {
+    const response = await client.get<ApiResponse<Task>>(`/projects/${projectId}/tasks/${taskId}`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const getTaskComments = async (projectId: string, taskId: number, archived?: boolean): Promise<Comment[]> => {
+    const response = await client.get<ApiResponse<Comment[]>>(`/projects/${projectId}/tasks/${taskId}/comments`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const createTaskComment = async (projectId: string, taskId: number, content: string, archived?: boolean): Promise<Comment> => {
+    const response = await client.post<ApiResponse<Comment>>(`/projects/${projectId}/tasks/${taskId}/comments`, { content }, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const getTaskAttachments = async (projectId: string, taskId: number, archived?: boolean): Promise<Attachment[]> => {
+    const response = await client.get<ApiResponse<Attachment[]>>(`/projects/${projectId}/tasks/${taskId}/attachments`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
     return extractData(response.data);
 };
 
@@ -182,4 +216,103 @@ export const searchUsersApi = async (email: string): Promise<UserSearchResult[]>
 
 export const addMemberApi = async (projectId: string, userId: string, role: string = 'member'): Promise<void> => {
     await client.post(`/projects/${projectId}/participants`, { user_id: userId, role });
+};
+
+export const updateMemberRoleApi = async (projectId: string, userId: string, role: string): Promise<void> => {
+    await client.put(`/projects/${projectId}/participants/${userId}`, { role });
+};
+
+export const removeMemberApi = async (projectId: string, userId: string): Promise<void> => {
+    await client.delete(`/projects/${projectId}/participants/${userId}`);
+};
+
+// Task deletion
+export const deleteTaskApi = async (projectId: string, taskId: number, archived?: boolean): Promise<void> => {
+    await client.delete(`/projects/${projectId}/tasks/${taskId}`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+};
+
+// Task comments update/delete
+export const updateTaskCommentApi = async (projectId: string, taskId: number, commentId: number, content: string, archived?: boolean): Promise<Comment> => {
+    const response = await client.put<ApiResponse<Comment>>(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, { content }, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const deleteTaskCommentApi = async (projectId: string, taskId: number, commentId: number, archived?: boolean): Promise<void> => {
+    await client.delete(`/projects/${projectId}/tasks/${taskId}/comments/${commentId}`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+};
+
+// Task attachments upload/delete/download
+export const uploadTaskAttachmentApi = async (projectId: string, taskId: number, file: File, archived?: boolean): Promise<Attachment> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.post<ApiResponse<Attachment>>(`/projects/${projectId}/tasks/${taskId}/attachments`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+export const deleteTaskAttachmentApi = async (projectId: string, taskId: number, attachmentId: number, archived?: boolean): Promise<void> => {
+    await client.delete(`/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+};
+
+export const downloadAttachmentApi = async (projectId: string, taskId: number, attachmentId: number, filename: string, archived?: boolean): Promise<void> => {
+    const response = await client.get(`/projects/${projectId}/tasks/${taskId}/attachments/${attachmentId}`, {
+        responseType: 'blob',
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+};
+
+interface HistoryUser {
+    id: string; name: string; email: string; avatar_url?: string;
+}
+
+export interface TaskHistoryEntry {
+    id: number;
+    created_at: string;
+    user: HistoryUser;
+    task_id: number;
+    old: Record<string, unknown>;
+    new: Record<string, unknown>;
+    changes: Array<{ field: string; old_value: string; new_value: string }>;
+}
+
+export const getTaskHistoryApi = async (projectId: string, taskId: number, archived?: boolean): Promise<TaskHistoryEntry[]> => {
+    const response = await client.get<ApiResponse<TaskHistoryEntry[]>>(`/projects/${projectId}/tasks/${taskId}/history`, {
+        params: archived ? { archived: 'true' } : undefined,
+    });
+    return extractData(response.data);
+};
+
+// Tasks by user (assigned/reported)
+export const getTasksByUserApi = async (type: 'assigned' | 'reported'): Promise<Task[]> => {
+    const response = await client.get<ApiResponse<Task[]>>(`/tasks/me?type=${type}`);
+    return extractData(response.data);
+};
+
+// Standalone statuses and priorities (if needed separately from project)
+export const getProjectStatusesApi = async (projectId: string): Promise<CustomStatus[]> => {
+    const response = await client.get<ApiResponse<CustomStatus[]>>(`/projects/${projectId}/statuses`);
+    return extractData(response.data);
+};
+
+export const getProjectPrioritiesApi = async (projectId: string): Promise<CustomPriority[]> => {
+    const response = await client.get<ApiResponse<CustomPriority[]>>(`/projects/${projectId}/priorities`);
+    return extractData(response.data);
 };

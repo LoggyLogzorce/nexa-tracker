@@ -18,7 +18,7 @@ import (
 )
 
 type Service interface {
-	Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*Attachment, error)
+	Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*AttachmentResponse, error)
 	GetByID(ctx context.Context, id, taskID uint) (*Attachment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]AttachmentResponse, error)
@@ -41,7 +41,7 @@ func NewService(repo Repository, taskRepo task.Repository, userRepo user.Reposit
 	}
 }
 
-func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*Attachment, error) {
+func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*AttachmentResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -88,6 +88,11 @@ func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, fil
 	}
 	fileSize := int64(n) + written
 
+	user, err := s.userRepo.GetByID(ctxT, userID)
+	if err != nil {
+		return nil, err
+	}
+
 	attachment := &Attachment{
 		TaskID:   taskID,
 		UserID:   userID,
@@ -103,7 +108,22 @@ func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, fil
 		return nil, ErrCreateAttachmentRecord
 	}
 
-	return attachment, nil
+	attachRes := &AttachmentResponse{
+		ID:        attachment.ID,
+		CreatedAt: attachment.CreatedAt,
+		TaskID:    attachment.TaskID,
+		User: AttachmentUserResponse{
+			ID:        user.ID,
+			Name:      user.Name,
+			Email:     user.Email,
+			AvatarUrl: user.AvatarUrl,
+		},
+		Filename: attachment.Filename,
+		FileSize: attachment.FileSize,
+		MimeType: attachment.MimeType,
+	}
+
+	return attachRes, nil
 }
 
 func (s *service) GetByID(ctx context.Context, id, taskID uint) (*Attachment, error) {
@@ -168,9 +188,10 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentRes
 		}
 		if u, ok := usersMap[a.UserID]; ok {
 			response[i].User = AttachmentUserResponse{
-				ID:    u.ID,
-				Name:  u.Name,
-				Email: u.Email,
+				ID:        u.ID,
+				Name:      u.Name,
+				Email:     u.Email,
+				AvatarUrl: u.AvatarUrl,
 			}
 		}
 	}
@@ -235,9 +256,10 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]At
 		}
 		if u, ok := usersMap[a.UserID]; ok {
 			response[i].User = AttachmentUserResponse{
-				ID:    u.ID,
-				Name:  u.Name,
-				Email: u.Email,
+				ID:        u.ID,
+				Name:      u.Name,
+				Email:     u.Email,
+				AvatarUrl: u.AvatarUrl,
 			}
 		}
 	}

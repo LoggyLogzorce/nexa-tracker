@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/google/uuid"
-	"strconv"
 	"time"
 )
 
@@ -103,14 +102,10 @@ func (n *Bool) UnmarshalJSON(data []byte) error {
 		n.Value = nil
 		return nil
 	}
-	var v string
+	var v bool
 	if err := json.Unmarshal(data, &v); err != nil {
 		return err
 	}
-	parsed, err := strconv.ParseBool(v)
-	if err != nil {
-		return fmt.Errorf("invalid uuid: %w", err)
-	}
-	n.Value = &parsed
+	n.Value = &v
 	return nil
 }

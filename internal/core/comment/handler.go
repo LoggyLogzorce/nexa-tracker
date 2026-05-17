@@ -50,12 +50,12 @@ func (h *Handler) Create(c *gin.Context) {
 		Content: req.Content,
 	}
 
-	err = h.service.Create(c.Request.Context(), comment)
+	resp, err := h.service.Create(c.Request.Context(), comment)
 	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to create comment")
 		return
 	}
-	response.Success(c, http.StatusCreated, comment)
+	response.Success(c, http.StatusCreated, resp)
 }
 
 func (h *Handler) GetByTaskID(c *gin.Context) {
@@ -109,7 +109,7 @@ func (h *Handler) Update(c *gin.Context) {
 		Content: req.Content,
 	}
 
-	err = h.service.Update(c.Request.Context(), comment)
+	resp, err := h.service.Update(c.Request.Context(), comment)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrCommentNotFound):
@@ -122,7 +122,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	response.Success(c, http.StatusOK, comment)
+	response.Success(c, http.StatusOK, resp)
 }
 
 func (h *Handler) Delete(c *gin.Context) {

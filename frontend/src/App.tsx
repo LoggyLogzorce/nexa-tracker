@@ -9,6 +9,9 @@ import RegisterPage from './pages/Auth/RegisterPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ProjectsPage from './pages/Projects/ProjectsPage';
 import ProjectDetailPage from './pages/Projects/ProjectDetailPage';
+import TaskDetailPage from './pages/Projects/TaskDetailPage';
+import MyTasksPage from './pages/Tasks/MyTasksPage';
+import ProfilePage from './pages/Profile/ProfilePage';
 import ProtectedRoute from './components/Auth/ProtectedRoute';
 
 function AuthRedirect({ children }: { children: React.ReactNode }) {
@@ -44,6 +47,9 @@ function App() {
                         <Route path="dashboard" element={<DashboardPage />} />
                         <Route path="projects" element={<ProjectsPage />} />
                         <Route path="projects/:id" element={<ProjectDetailPage />} />
+                        <Route path="projects/:id/tasks/:taskId" element={<TaskDetailPage />} />
+                        <Route path="tasks" element={<MyTasksPage />} />
+                        <Route path="profile" element={<ProfilePage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>

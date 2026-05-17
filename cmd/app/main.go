@@ -94,7 +94,7 @@ func main() {
 	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
 
 	// Initialize handlers
-	userHandler := user.NewHandler(userService)
+	userHandler := user.NewHandler(userService, cfg.Upload.Path)
 	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, eventBus)
 	projectHandler := project.NewHandler(projectService)
 	statusHandler := status.NewHandler(statusService, eventBus)
@@ -117,7 +117,7 @@ func main() {
 	}
 
 	// Setup router
-	router := api.NewRouter(h, cfg.JWT.Secret, cfg.CORS.Origins, projectRepo, participantRepo, taskRepo)
+	router := api.NewRouter(h, cfg.JWT.Secret, cfg.CORS.Origins, cfg.Upload.Path, projectRepo, participantRepo, taskRepo)
 	engine := router.Setup()
 
 	// Setup modules

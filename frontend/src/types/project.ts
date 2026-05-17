@@ -6,6 +6,7 @@ export interface ProjectOwner {
     id: string;
     name: string;
     email: string;
+    avatar_url?: string;
 }
 
 export interface CustomStatus {

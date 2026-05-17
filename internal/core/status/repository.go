@@ -11,6 +11,7 @@ type Repository interface {
 	CreateBatch(ctx context.Context, statuses []Status) error
 	GetByID(ctx context.Context, id uint) (*Status, error)
 	GetByName(ctx context.Context, name string) (*Status, error)
+	GetByNameAndProjectID(ctx context.Context, name string, projectID uuid.UUID) (*Status, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
 	GetListByIDs(ctx context.Context, ids []uint) ([]Status, error)
 	GetListByProjectsIDs(ctx context.Context, ids []uuid.UUID) ([]Status, error)
@@ -52,6 +53,12 @@ func (r *repository) GetByID(ctx context.Context, id uint) (*Status, error) {
 func (r *repository) GetByName(ctx context.Context, name string) (*Status, error) {
 	var status *Status
 	err := r.db.WithContext(ctx).Where("name = ?", name).First(&status).Error
+	return status, err
+}
+
+func (r *repository) GetByNameAndProjectID(ctx context.Context, name string, projectID uuid.UUID) (*Status, error) {
+	var status *Status
+	err := r.db.WithContext(ctx).Where("name = ? AND project_id = ?", name, projectID).First(&status).Error
 	return status, err
 }
 

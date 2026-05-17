@@ -19,9 +19,9 @@ export function useProjects(mode: 'all' | 'owned' = 'all') {
     }, [mode]);
 
     const createProject = useCallback((data: { title: string; description: string; status: ProjectStatus; priority: Priority }) => {
-        createProjectApi(data)
+        return createProjectApi(data)
             .then(project => { setProjects(prev => [project, ...prev]); addNotification('success', 'Проект успешно создан'); })
-            .catch(() => addNotification('error', 'Ошибка при создании проекта'));
+            .catch(err => { addNotification('error', 'Ошибка при создании проекта'); throw err; });
     }, [addNotification]);
 
     const updateProject = useCallback((updated: Project) => {

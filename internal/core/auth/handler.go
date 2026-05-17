@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"nexa-task-tracker/internal/pkg/validation"
 	"os"
 	"time"
 
@@ -93,7 +94,8 @@ func (h *Handler) Register(c *gin.Context) {
 
 	// Bind and validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 
@@ -123,7 +125,8 @@ func (h *Handler) Login(c *gin.Context) {
 
 	// Bind and validate request
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, err.Error())
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
 		return
 	}
 

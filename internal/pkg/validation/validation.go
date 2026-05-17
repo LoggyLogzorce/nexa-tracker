@@ -18,6 +18,10 @@ func ParseError(err error) (int, string) {
 			return http.StatusUnprocessableEntity, strings.ToLower(fe.Field()) + " is required"
 		case "oneof":
 			return http.StatusUnprocessableEntity, strings.ToLower(fe.Field()) + " must be one of: " + strings.ReplaceAll(fe.Param(), " ", ", ")
+		case "min":
+			return http.StatusUnprocessableEntity, strings.ToLower(fe.Field()) + " must be at least " + fe.Param() + " characters"
+		case "max":
+			return http.StatusUnprocessableEntity, strings.ToLower(fe.Field()) + " must be at most " + fe.Param() + " characters"
 		case "uuid":
 			return http.StatusUnprocessableEntity, strings.ToLower(fe.Field()) + " must be a valid UUID"
 		default:

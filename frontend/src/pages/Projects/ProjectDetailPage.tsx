@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { getProjectById, getProjectTasks, getProjectMembers, getProjectAttachments, updateProjectApi, deleteProjectApi, createTaskApi, updateTaskApi } from '../../api/projects';
+import { getProjectById, getProjectTasks, getProjectMembers, getProjectAttachments, updateProjectApi, deleteProjectApi, createTaskApi, updateTaskApi, deleteTaskApi, updateMemberRoleApi, removeMemberApi, getProjectStatusesApi, getProjectPrioritiesApi } from '../../api/projects';
 import type { Task, ProjectMember, Attachment } from '../../types/task';
 import type { Project } from '../../types/project';
 import { useNotifications } from '../../contexts/useNotifications';
@@ -11,6 +11,8 @@ import KanbanBoard from '../../components/Projects/KanbanBoard';
 import ListView from '../../components/Projects/ListView';
 import ProjectSidebar from '../../components/Projects/ProjectSidebar';
 import NewTaskModal from '../../components/Projects/NewTaskModal';
+import EditTaskModal from '../../components/Projects/EditTaskModal';
+import TaskDeleteConfirm from '../../components/Projects/TaskDeleteConfirm';
 import EditModal from '../../components/Dashboard/EditModal';
 import DeleteModal from '../../components/Dashboard/DeleteModal';
 import EditStatusesModal from '../../components/Projects/EditStatusesModal';
@@ -42,6 +44,10 @@ export default function ProjectDetailPage() {
     const [prioritiesModal, setPrioritiesModal] = useState(false);
     const [showAddMember, setShowAddMember] = useState(false);
     const [filters, setFilters] = useState({ status: '', priority: '', assignee: '' });
+    const [sidebarDataLoaded, setSidebarDataLoaded] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
+    const [editTask, setEditTask] = useState<Task | null>(null);
+    const [deleteTask, setDeleteTask] = useState<Task | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -50,19 +56,28 @@ export default function ProjectDetailPage() {
             getProjectById(id),
             getProjectTasks(id),
             getProjectMembers(id),
-            getProjectAttachments(id),
         ])
-            .then(([p, t, m, a]) => {
+            .then(([p, t, m]) => {
                 setProject(p);
                 setTasks(t);
                 setFilteredTasks(t);
                 setMembers(m);
-                setAttachments(a);
                 setError(null);
             })
             .catch(err => setError(err instanceof Error ? err.message : 'Ошибка загрузки'))
             .finally(() => setIsLoading(false));
     }, [id]);
+
+    useEffect(() => {
+        if (!sidebarOpen || sidebarDataLoaded || !id) return;
+
+        getProjectAttachments(id)
+            .then(a => {
+                setAttachments(a);
+                setSidebarDataLoaded(true);
+            })
+            .catch(() => addNotification('error', 'Ошибка загрузки вложений'));
+    }, [sidebarOpen, sidebarDataLoaded, id, addNotification]);
 
     const allMembers = useMemo(() => {
         if (!project) return members;
@@ -73,6 +88,7 @@ export default function ProjectDetailPage() {
                 user_id: project.owner.id,
                 name: project.owner.name,
                 email: project.owner.email,
+                avatar_url: project.owner.avatar_url,
             },
         };
         return [ownerMember, ...members];
@@ -134,7 +150,11 @@ export default function ProjectDetailPage() {
     const handleSaveEdit = useCallback((updated: Project) => {
         if (!project) return;
         updateProjectApi(updated.id, updated)
-            .then(p => { setProject(p); setEditModal({ open: false }); addNotification('success', 'Проект успешно обновлён'); })
+            .then(p => {
+                setProject({ ...p, statuses: project.statuses, priorities: project.priorities });
+                setEditModal({ open: false });
+                addNotification('success', 'Проект успешно обновлён');
+            })
             .catch(() => addNotification('error', 'Ошибка при обновлении проекта'));
     }, [project, addNotification]);
 
@@ -163,9 +183,101 @@ export default function ProjectDetailPage() {
     }, [project, addNotification]);
 
     const handleRefetchProject = useCallback(() => {
+        if (!id || !project) return;
+        Promise.all([
+            getProjectById(id),
+            getProjectStatusesApi(id),
+            getProjectPrioritiesApi(id),
+        ]).then(([p, statuses, priorities]) => {
+            setProject({ ...p, statuses, priorities });
+        });
+    }, [id, project]);
+
+    const handleRoleChange = useCallback((member: ProjectMember, newRole: string) => {
         if (!id) return;
-        getProjectById(id).then(p => setProject(p));
-    }, [id]);
+        updateMemberRoleApi(id, member.User.user_id, newRole)
+            .then(() => {
+                getProjectMembers(id).then(m => setMembers(m));
+                addNotification('success', 'Роль участника изменена');
+            })
+            .catch(() => addNotification('error', 'Ошибка при изменении роли'));
+    }, [id, addNotification]);
+
+    const handleRemoveMember = useCallback((member: ProjectMember) => {
+        if (!id) return;
+        removeMemberApi(id, member.User.user_id)
+            .then(() => {
+                setMembers(prev => prev.filter(m => m.User.user_id !== member.User.user_id));
+                addNotification('success', 'Участник удалён');
+            })
+            .catch(() => addNotification('error', 'Ошибка при удалении участника'));
+    }, [id, addNotification]);
+
+    const handleToggleArchive = useCallback(() => {
+        if (!id) return;
+        const willShow = !showArchived;
+        setShowArchived(willShow);
+        getProjectTasks(id, willShow)
+            .then(t => { setTasks(t); setFilteredTasks(t); })
+            .catch(() => addNotification('error', 'Ошибка загрузки архива'));
+    }, [id, showArchived, addNotification]);
+
+    const handleEditTask = useCallback((task: Task) => {
+        setEditTask(task);
+    }, []);
+
+    const handleSaveEditTask = useCallback((data: { title: string; description: string; status: string; priority: string; deadline: string; assignee: string }) => {
+        if (!project || !editTask) return;
+        const statusObj = project.statuses.find(s => s.name === data.status) || project.statuses[0];
+        const priorityObj = project.priorities.find(p => p.title === data.priority) || project.priorities[0];
+
+        const payload: Record<string, unknown> = {
+            title: data.title,
+            description: data.description,
+            deadline: data.deadline ? `${data.deadline}T00:00:00Z` : null,
+            status_id: statusObj.id,
+            priority_id: priorityObj.id,
+        };
+        if (data.assignee) {
+            payload.assignee_id = data.assignee;
+        }
+
+        updateTaskApi(project.id, editTask.id, payload, editTask.is_archive || undefined)
+            .then(updated => {
+                setTasks(prev => prev.map(t => t.id === editTask.id ? updated : t));
+                setFilteredTasks(prev => prev.map(t => t.id === editTask.id ? updated : t));
+                setEditTask(null);
+                addNotification('success', 'Задача обновлена');
+            })
+            .catch(() => addNotification('error', 'Ошибка обновления задачи'));
+    }, [project, editTask, addNotification]);
+
+    const handleArchiveTask = useCallback((task: Task) => {
+        if (!project) return;
+        updateTaskApi(project.id, task.id, { is_archive: !task.is_archive }, task.is_archive || undefined)
+            .then(() => {
+                setTasks(prev => prev.filter(t => t.id !== task.id));
+                setFilteredTasks(prev => prev.filter(t => t.id !== task.id));
+                addNotification('success', task.is_archive ? 'Задача восстановлена' : 'Задача архивирована');
+            })
+            .catch(() => addNotification('error', 'Ошибка при архивации задачи'));
+    }, [project, addNotification]);
+
+    const handleDeleteTask = useCallback((task: Task) => {
+        setDeleteTask(task);
+    }, []);
+
+    const handleConfirmDeleteTask = useCallback(() => {
+        if (!project || !deleteTask) return;
+        deleteTaskApi(project.id, deleteTask.id, deleteTask.is_archive || undefined)
+            .then(() => {
+                setTasks(prev => prev.filter(t => t.id !== deleteTask.id));
+                setFilteredTasks(prev => prev.filter(t => t.id !== deleteTask.id));
+                setDeleteTask(null);
+                addNotification('success', 'Задача удалена');
+            })
+            .catch(() => addNotification('error', 'Ошибка удаления задачи'));
+    }, [project, deleteTask, addNotification]);
 
     if (isLoading) {
         return <p className={styles.loading}>Загрузка проекта...</p>;
@@ -221,6 +333,10 @@ export default function ProjectDetailPage() {
                                 </button>
                             </span>
                         )}
+                        <button className={`${styles.archiveToggleBtn} ${showArchived ? styles.active : ''}`} onClick={handleToggleArchive}>
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16v2H4V4z"/><path d="M4 8h16l-2 12H6L4 8z"/><path d="M12 16v-4"/><path d="M10 14l2-2 2 2"/></svg>
+                            {showArchived ? 'Активные задачи' : 'Архив'}
+                        </button>
                     </div>
                     <button className={styles.newTaskBtn} onClick={() => setShowNewTask(true)}>
                         <svg className={styles.newTaskIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>
@@ -229,9 +345,9 @@ export default function ProjectDetailPage() {
                 </div>
 
                 {view === 'kanban' ? (
-                    <KanbanBoard statuses={project.statuses} tasks={filteredTasks} onTaskMove={handleTaskMove} />
+                    <KanbanBoard statuses={project.statuses} tasks={filteredTasks} project={project} onTaskMove={handleTaskMove} onEdit={handleEditTask} onArchive={handleArchiveTask} onDelete={handleDeleteTask} />
                 ) : (
-                    <ListView tasks={filteredTasks} />
+                    <ListView tasks={filteredTasks} project={project} onEdit={handleEditTask} onArchive={handleArchiveTask} onDelete={handleDeleteTask} />
                 )}
             </div>
 
@@ -239,7 +355,7 @@ export default function ProjectDetailPage() {
                 <svg className={styles.floatingToggleIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={sidebarOpen ? 'M15 19l-7-7 7-7' : 'M9 5l7 7-7 7'} /></svg>
             </button>
 
-            <ProjectSidebar members={allMembers} attachments={attachments} open={sidebarOpen} onAddMember={() => setShowAddMember(true)} />
+            <ProjectSidebar members={allMembers} attachments={attachments} open={sidebarOpen} projectId={project.id} onAddMember={() => setShowAddMember(true)} onRoleChange={handleRoleChange} onRemoveMember={handleRemoveMember} />
 
             {showNewTask && (
                 <NewTaskModal
@@ -248,6 +364,25 @@ export default function ProjectDetailPage() {
                     members={allMembers}
                     onClose={() => setShowNewTask(false)}
                     onSave={handleCreateTask}
+                />
+            )}
+
+            {editTask && project && (
+                <EditTaskModal
+                    task={editTask}
+                    statuses={project.statuses}
+                    priorities={project.priorities}
+                    members={allMembers}
+                    onClose={() => setEditTask(null)}
+                    onSave={handleSaveEditTask}
+                />
+            )}
+
+            {deleteTask && (
+                <TaskDeleteConfirm
+                    task={deleteTask}
+                    onClose={() => setDeleteTask(null)}
+                    onConfirm={handleConfirmDeleteTask}
                 />
             )}
 

@@ -1,8 +1,11 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse } from '../types/auth';
 
+// export const API_ORIGIN = 'http://10.147.18.142:8080';
+export const API_ORIGIN = 'http://192.168.3.69:8080';
+
 const client = axios.create({
-    baseURL: 'http://localhost:8080/api/v1',
+    baseURL: `${API_ORIGIN}/api/v1`,
     withCredentials: true,
     headers: { 'Content-Type': 'application/json' },
 });

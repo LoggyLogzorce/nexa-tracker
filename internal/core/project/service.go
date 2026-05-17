@@ -18,7 +18,7 @@ type Service interface {
 	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error)
 	List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
 	ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
-	Update(ctx context.Context, project UpdateProjectRequest, userID, projectID uuid.UUID) (*Project, error)
+	Update(ctx context.Context, project UpdateProjectRequest, userID, projectID uuid.UUID) (*ProjectResponse, error)
 	Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error
 }
 
@@ -124,6 +124,7 @@ func (s *service) GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (
 	projectDto.Owner.ID = owner.ID
 	projectDto.Owner.Name = owner.Name
 	projectDto.Owner.Email = owner.Email
+	projectDto.Owner.AvatarUrl = owner.AvatarUrl
 
 	statuses, err := s.statusRepo.GetByProjectID(ctxT, project.ID)
 	if err != nil {
@@ -221,9 +222,10 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 			Status:      p.Status,
 			Priority:    p.Priority,
 			Owner: struct {
-				ID    uuid.UUID `json:"id"`
-				Name  string    `json:"name"`
-				Email string    `json:"email"`
+				ID        uuid.UUID `json:"id"`
+				Name      string    `json:"name"`
+				Email     string    `json:"email"`
+				AvatarUrl string    `json:"avatar_url"`
 			}{
 				ID: p.OwnerID,
 			},
@@ -310,9 +312,10 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 			Priority:    p.Priority,
 			UserRole:    "owner",
 			Owner: struct {
-				ID    uuid.UUID `json:"id"`
-				Name  string    `json:"name"`
-				Email string    `json:"email"`
+				ID        uuid.UUID `json:"id"`
+				Name      string    `json:"name"`
+				Email     string    `json:"email"`
+				AvatarUrl string    `json:"avatar_url"`
 			}{
 				ID: p.OwnerID,
 			},
@@ -341,7 +344,7 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 	return responses, nil
 }
 
-func (s *service) Update(ctx context.Context, req UpdateProjectRequest, userID, projectID uuid.UUID) (*Project, error) {
+func (s *service) Update(ctx context.Context, req UpdateProjectRequest, userID, projectID uuid.UUID) (*ProjectResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -388,7 +391,26 @@ func (s *service) Update(ctx context.Context, req UpdateProjectRequest, userID, 
 		return nil, err
 	}
 
-	return existingProject, nil
+	projectDto := &ProjectResponse{
+		ID:          existingProject.ID,
+		Title:       existingProject.Title,
+		Description: existingProject.Description,
+		CreatedAt:   existingProject.CreatedAt,
+		Status:      existingProject.Status,
+		Priority:    existingProject.Priority,
+		UserRole:    "owner",
+	}
+
+	owner, err := s.userRepo.GetByID(ctxT, existingProject.OwnerID)
+	if err != nil {
+		return nil, ErrGetOwner
+	}
+
+	projectDto.Owner.ID = owner.ID
+	projectDto.Owner.Name = owner.Name
+	projectDto.Owner.Email = owner.Email
+
+	return projectDto, nil
 }
 
 func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) error {

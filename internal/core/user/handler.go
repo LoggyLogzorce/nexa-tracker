@@ -2,23 +2,24 @@ package user
 
 import (
 	"errors"
-	"net/http"
-	"nexa-task-tracker/internal/ctxkeys"
-	"nexa-task-tracker/internal/pkg/response"
-	"regexp"
-	"strings"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"net/http"
+	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/pkg/response"
+	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 type Handler struct {
-	service Service
+	service    Service
+	uploadPath string
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service Service, uploadPath string) *Handler {
+	return &Handler{service: service, uploadPath: uploadPath}
 }
 
 type UpdateUserRequest struct {
@@ -63,17 +64,6 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 		return
 	}
 
-	// 2. Получить текущего пользователя из БД
-	user, err := h.service.GetByID(c.Request.Context(), userID.(uuid.UUID))
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			response.Error(c, http.StatusNotFound, "user not found")
-			return
-		}
-		response.Error(c, http.StatusInternalServerError, "failed to get user")
-		return
-	}
-
 	// 3. Парсинг и валидация запроса
 	var req UpdateUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -81,14 +71,15 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 		return
 	}
 
-	// 4. Проверить что хотя бы одно поле передано
-	if req.Name == "" && req.Email == "" {
-		response.Error(c, http.StatusBadRequest, "no fields to update")
-		return
+	user := &User{
+		ID: userID.(uuid.UUID),
 	}
 
-	// 5. Обновить Name (если передан)
-	if req.Name != "" {
+	// 4. Проверить что поле не пустое
+	if req.Name == "" {
+		response.Error(c, http.StatusBadRequest, "no fields to update")
+		return
+	} else {
 		// Валидация имени на спецсимволы
 		if !validateName(req.Name) {
 			response.Error(c, http.StatusBadRequest, "name contains invalid characters")
@@ -97,35 +88,15 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 		user.Name = req.Name
 	}
 
-	// 6. Обновить Email (если передан и отличается от текущего)
-	if req.Email != "" {
-		// Привести к lowercase для сравнения
-		newEmail := strings.ToLower(req.Email)
-		currentEmail := strings.ToLower(user.Email)
-
-		if newEmail != currentEmail {
-			// Проверить уникальность email
-			exists, err := h.service.EmailExists(c.Request.Context(), newEmail, user.ID)
-			if err != nil {
-				response.Error(c, http.StatusInternalServerError, "failed to check email availability")
-				return
-			}
-			if exists {
-				response.Error(c, http.StatusConflict, "email already in use")
-				return
-			}
-			user.Email = newEmail
-		}
-	}
-
 	// 7. Сохранить в БД (GORM автоматически обновит UpdatedAt)
-	if err := h.service.Update(c.Request.Context(), user); err != nil {
+	userNew, err := h.service.Update(c.Request.Context(), user)
+	if err != nil {
 		response.Error(c, http.StatusInternalServerError, "failed to update user")
 		return
 	}
 
 	// 8. Вернуть обновленные данные
-	response.Success(c, http.StatusOK, user.ToResponse())
+	response.Success(c, http.StatusOK, userNew)
 }
 
 // validateName checks if name contains only letters, spaces, and hyphens
@@ -133,6 +104,50 @@ func validateName(name string) bool {
 	// Разрешаем буквы (любые языки), пробелы, дефисы
 	matched, _ := regexp.MatchString(`^[\p{L}\s\-]+$`, name)
 	return matched
+}
+
+var allowedAvatarExts = map[string]bool{
+	".jpg": true, ".jpeg": true, ".png": true, ".gif": true, ".webp": true,
+}
+
+func (h *Handler) UploadAvatar(c *gin.Context) {
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "file is required")
+		return
+	}
+
+	ext := strings.ToLower(filepath.Ext(fileHeader.Filename))
+	if !allowedAvatarExts[ext] {
+		response.Error(c, http.StatusBadRequest, "invalid file type. Allowed: jpg, jpeg, png, gif, webp")
+		return
+	}
+
+	if fileHeader.Size > 5<<20 {
+		response.Error(c, http.StatusBadRequest, "file too large. Max 5MB")
+		return
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to open file")
+		return
+	}
+	defer file.Close()
+
+	userNew, err := h.service.UploadAvatar(c.Request.Context(), userID.(uuid.UUID), fileHeader.Filename, file, h.uploadPath)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to upload avatar")
+		return
+	}
+
+	response.Success(c, http.StatusOK, userNew)
 }
 
 func (h *Handler) SearchUsers(c *gin.Context) {

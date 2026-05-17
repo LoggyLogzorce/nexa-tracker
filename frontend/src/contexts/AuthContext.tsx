@@ -51,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 const { access_token } = await authApi.refresh();
                 setCurrentAccessToken(access_token);
                 setSessionValid(true);
+                await loadUser();
             } catch {
                 setCurrentAccessToken(null);
             } finally {
@@ -58,12 +59,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
         };
         init();
-    }, []);
+    }, [loadUser]);
 
     const login = async (payload: LoginPayload) => {
         const { access_token } = await authApi.login(payload);
         setCurrentAccessToken(access_token);
         setSessionValid(true);
+        await loadUser();
     };
 
     const register = async (payload: RegisterPayload) => {

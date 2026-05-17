@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Input } from '../../components/UI/Input';
 import { Button } from '../../components/UI/Button';
 import { useAuth } from '../../contexts/useAuth';
+import { useNotifications } from '../../contexts/useNotifications';
 import styles from './RegisterPage.module.css';
 
 export default function RegisterPage() {
@@ -14,13 +15,15 @@ export default function RegisterPage() {
     const [isLoading, setIsLoading] = useState(false);
     const { register } = useAuth();
     const navigate = useNavigate();
+    const { addNotification } = useNotifications();
 
     const validate = (): boolean => {
         const newErrors: Record<string, string> = {};
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+        if (name.length == 0) newErrors.name = 'Введите имя пользователя';
         if (!emailRegex.test(email)) newErrors.email = 'Введите корректный email';
-        if (password.length < 6) newErrors.password = 'Пароль должен быть не менее 6 символов';
+        if (password.length < 8) newErrors.password = 'Пароль должен быть не менее 8 символов';
         if (password !== confirmPassword) newErrors.confirmPassword = 'Пароли не совпадают';
 
         setErrors(newErrors);
@@ -36,7 +39,7 @@ export default function RegisterPage() {
             await register({ name, email, password });
             navigate('/login');
         } catch {
-            setErrors({ general: 'Ошибка регистрации. Попробуйте позже.' });
+            addNotification('error', 'Ошибка регистрации. Попробуйте позже.');
         } finally {
             setIsLoading(false);
         }

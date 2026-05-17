@@ -33,7 +33,8 @@ type AttachmentResponse struct {
 }
 
 type AttachmentUserResponse struct {
-	ID    uuid.UUID `json:"id"`
-	Name  string    `json:"name"`
-	Email string    `json:"email"`
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	Email     string    `json:"email"`
+	AvatarUrl string    `json:"avatar_url"`
 }

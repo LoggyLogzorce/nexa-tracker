@@ -1,6 +1,18 @@
 import { useState } from 'react';
-import type { Project } from '../../types/project';
+import type { Project, ProjectStatus, Priority } from '../../types/project';
 import styles from './ProjectHeader.module.css';
+
+const statusConfig: Record<ProjectStatus, string> = {
+    'В работе': styles.badgeBlue,
+    'Планирование': styles.badgeAmber,
+    'Завершен': styles.badgeGreen,
+};
+
+const priorityConfig: Record<Priority, string> = {
+    'Высокий': '#ef4444',
+    'Средний': '#f59e0b',
+    'Низкий': '#22c55e',
+};
 
 interface Props { project: Project; onEdit?: () => void; onDelete?: () => void; onEditStatuses?: () => void; onEditPriorities?: () => void; }
 
@@ -13,7 +25,11 @@ export default function ProjectHeader({ project, onEdit, onDelete, onEditStatuse
             <div className={styles.left}>
                 <div className={styles.titleRow}>
                     <h1 className={styles.title}>{project.title}</h1>
-                    <span className={styles.statusBadge}>{project.status}</span>
+                    <span className={`${styles.statusBadge} ${statusConfig[project.status]}`}>{project.status}</span>
+                    <span className={styles.priorityBadge} style={{ color: priorityConfig[project.priority] }}>
+                        <svg className={styles.priorityDot} width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>
+                        {project.priority}
+                    </span>
                 </div>
                 <p className={styles.description}>{project.description}</p>
                 <div className={styles.meta}>

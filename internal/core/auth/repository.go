@@ -30,7 +30,7 @@ func (r *repository) CreateRefreshToken(ctx context.Context, token *RefreshToken
 
 func (r *repository) GetRefreshToken(ctx context.Context, tokenHash string) (*RefreshToken, error) {
 	var token RefreshToken
-	err := r.db.WithContext(ctx).Where("token_hash = ? AND revoked_at IS NULL", tokenHash).First(&token).Error
+	err := r.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&token).Error
 	if err != nil {
 		return nil, err
 	}

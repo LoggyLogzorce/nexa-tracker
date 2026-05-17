@@ -1,16 +1,14 @@
+import { useState } from 'react';
 import type { ProjectMember } from '../../types/task';
+import Avatar from '../UI/Avatar';
 import styles from './TeamMembers.module.css';
 
-const avatarImages = [
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1281ab55e-b3ab-4e9e-be91-85c89891a3c3.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/15745d149-3792-4261-a5c2-f7913b692184.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1818d7289-0020-4e2c-bba4-19c272b7c3ba.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1df69439c-4074-406c-b81d-7d3faea2d322.png'
-];
+interface Props { members: ProjectMember[]; onAddMember?: () => void; onRoleChange?: (member: ProjectMember, role: string) => void; onRemoveMember?: (member: ProjectMember) => void; }
 
-interface Props { members: ProjectMember[]; onAddMember?: () => void; }
+export default function TeamMembers({ members, onAddMember, onRoleChange, onRemoveMember }: Props) {
+    const [openMenu, setOpenMenu] = useState<string | null>(null);
+    const [roleSubmenu, setRoleSubmenu] = useState(false);
 
-export default function TeamMembers({ members, onAddMember }: Props) {
     return (
         <div className={styles.wrap}>
             <div className={styles.header}>
@@ -20,18 +18,49 @@ export default function TeamMembers({ members, onAddMember }: Props) {
                 </button>
             </div>
             <div className={styles.list}>
-                {members.filter(m => m.User.name !== 'Deleted User').map((member, i) => (
+                {members.filter(m => m.User.name !== 'Deleted User').map(member => (
                     <div key={member.User.user_id} className={styles.member}>
                         <div className={styles.memberLeft}>
-                            <div className={styles.avatar}>
-                                <img src={avatarImages[i % avatarImages.length]} alt={member.User.name} />
-                            </div>
+                            <Avatar name={member.User.name} avatarUrl={member.User.avatar_url} size={32} />
                             <div className={styles.info}>
                                 <p className={styles.name}>{member.User.name}</p>
                                 <p className={styles.role}>{member.role === 'owner' ? 'Владелец' : member.role === 'read_only' ? 'Только чтение' : 'Участник'}</p>
                             </div>
                         </div>
-                        <span className={styles.online} />
+                        {member.role !== 'owner' && (
+                            <div className={styles.menuWrap}>
+                                <button className={styles.menuBtn} onClick={() => { setOpenMenu(openMenu === member.User.user_id ? null : member.User.user_id); setRoleSubmenu(false); }}>
+                                    <svg className={styles.menuIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"/></svg>
+                                </button>
+                                {openMenu === member.User.user_id && !roleSubmenu && (
+                                    <div className={styles.dropdown}>
+                                        <button className={styles.dropdownItem} onClick={() => setRoleSubmenu(true)}>
+                                            <svg className={styles.dropdownIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                                            Роль
+                                        </button>
+                                        <button className={`${styles.dropdownItem} ${styles.dropdownDelete}`} onClick={() => { onRemoveMember?.(member); setOpenMenu(null); setRoleSubmenu(false); }}>
+                                            <svg className={styles.dropdownIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                            Удалить
+                                        </button>
+                                    </div>
+                                )}
+                                {openMenu === member.User.user_id && roleSubmenu && (
+                                    <div className={styles.dropdown}>
+                                        <button className={styles.dropdownItem} onClick={() => setRoleSubmenu(false)}>
+                                            <svg className={styles.dropdownIcon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
+                                            Назад
+                                        </button>
+                                        <div className={styles.submenuDivider} />
+                                        <button className={`${styles.dropdownItem} ${member.role === 'member' ? styles.activeRole : ''}`} onClick={() => { onRoleChange?.(member, 'member'); setOpenMenu(null); setRoleSubmenu(false); }}>
+                                            Участник
+                                        </button>
+                                        <button className={`${styles.dropdownItem} ${member.role === 'read_only' ? styles.activeRole : ''}`} onClick={() => { onRoleChange?.(member, 'read_only'); setOpenMenu(null); setRoleSubmenu(false); }}>
+                                            Только чтение
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

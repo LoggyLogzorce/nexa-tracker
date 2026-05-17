@@ -1,13 +1,14 @@
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { useState } from 'react';
 import type { TaskStatus, Task } from '../../types/task';
+import type { Project } from '../../types/project';
 import KanbanColumn from './KanbanColumn';
 import KanbanCard from './KanbanCard';
 import styles from './KanbanBoard.module.css';
 
-interface Props { statuses: TaskStatus[]; tasks: Task[]; onTaskMove?: (taskId: number, newStatusName: string) => void; }
+interface Props { statuses: TaskStatus[]; tasks: Task[]; project: Project; onTaskMove?: (taskId: number, newStatusName: string) => void; onEdit?: (task: Task) => void; onArchive?: (task: Task) => void; onDelete?: (task: Task) => void; }
 
-export default function KanbanBoard({ statuses, tasks, onTaskMove }: Props) {
+export default function KanbanBoard({ statuses, tasks, project, onTaskMove, onEdit, onArchive, onDelete }: Props) {
     const [activeTask, setActiveTask] = useState<Task | null>(null);
     const sorted = [...statuses].sort((a, b) => a.order_index - b.order_index);
 
@@ -34,11 +35,15 @@ export default function KanbanBoard({ statuses, tasks, onTaskMove }: Props) {
                         key={status.id}
                         status={status}
                         tasks={tasks.filter(t => t.status.name === status.name)}
+                        project={project}
+                        onEdit={onEdit}
+                        onArchive={onArchive}
+                        onDelete={onDelete}
                     />
                 ))}
             </div>
             <DragOverlay>
-                {activeTask ? <div className={styles.overlay}><KanbanCard task={activeTask} /></div> : null}
+                {activeTask ? <div className={styles.overlay}><KanbanCard task={activeTask} project={project} /></div> : null}
             </DragOverlay>
         </DndContext>
     );

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Input } from '../../components/UI/Input';
 import { Button } from '../../components/UI/Button';
 import { useAuth } from '../../contexts/useAuth';
+import { useNotifications } from '../../contexts/useNotifications';
 import styles from './LoginPage.module.css';
 
 export default function LoginPage() {
@@ -11,6 +12,7 @@ export default function LoginPage() {
     const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
     const [isLoading, setIsLoading] = useState(false);
     const { login } = useAuth();
+    const { addNotification } = useNotifications();
 
     const validate = (): boolean => {
         const newErrors: typeof errors = {};
@@ -31,7 +33,7 @@ export default function LoginPage() {
         try {
             await login({ email, password });
         } catch {
-            setErrors({ email: 'Неверный email или пароль' });
+            addNotification('error', 'Неверный email или пароль');
         } finally {
             setIsLoading(false);
         }

@@ -36,9 +36,12 @@ func (s *service) Create(ctx context.Context, status *Status) error {
 	defer cancel()
 
 	// 1. Проверка уникальности названия
-	_, err := s.repo.GetByName(ctxT, status.Name)
+	_, err := s.repo.GetByNameAndProjectID(ctxT, status.Name, status.ProjectID)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
 	if err == nil {
-		return ErrStatusNameExists // TODO проверить на наличие других ошибок в этом блоке
+		return ErrStatusNameExists
 	}
 
 	// 2. Валидация color (если указан)

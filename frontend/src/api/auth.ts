@@ -36,3 +36,21 @@ export const getMe = async (): Promise<UserResponse> => {
     const response = await client.get<ApiResponse<UserResponse>>('/users/me');
     return extractData(response.data);
 };
+
+export const updateUserMeApi = async (data: { name?: string; email?: string }): Promise<UserResponse> => {
+    const response = await client.put<ApiResponse<UserResponse>>('/users/me', data);
+    return extractData(response.data);
+};
+
+export const deleteUserMeApi = async (): Promise<void> => {
+    await client.delete('/users/me');
+};
+
+export const uploadAvatarApi = async (file: File): Promise<UserResponse> => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await client.put<ApiResponse<UserResponse>>('/users/me/avatar', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return extractData(response.data);
+};

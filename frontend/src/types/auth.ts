@@ -20,6 +20,7 @@ export interface UserResponse {
     email: string;
     name: string;
     role: string;
+    avatar_url?: string;
     created_at: string;
     updated_at: string;
 }

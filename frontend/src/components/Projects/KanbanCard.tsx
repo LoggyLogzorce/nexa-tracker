@@ -1,18 +1,17 @@
+import { useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
+import { useNavigate } from 'react-router-dom';
 import type { Task } from '../../types/task';
+import type { Project } from '../../types/project';
+import Avatar from '../UI/Avatar';
 import styles from './KanbanCard.module.css';
 
-const avatarImages = [
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1281ab55e-b3ab-4e9e-be91-85c89891a3c3.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/15745d149-3792-4261-a5c2-f7913b692184.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1818d7289-0020-4e2c-bba4-19c272b7c3ba.png',
-    'https://image.qwenlm.ai/public_source/87cc46bb-251e-456e-a7c0-8d3b41f35211/1df69439c-4074-406c-b81d-7d3faea2d322.png'
-];
+interface Props { task: Task; project: Project; onEdit?: (task: Task) => void; onArchive?: (task: Task) => void; onDelete?: (task: Task) => void; }
 
-interface Props { task: Task; }
-
-export default function KanbanCard({ task }: Props) {
+export default function KanbanCard({ task, project, onEdit, onArchive, onDelete }: Props) {
+    const navigate = useNavigate();
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: String(task.id) });
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const style = transform ? { transform: `translate(${transform.x}px, ${transform.y}px)` } : undefined;
 
@@ -21,22 +20,66 @@ export default function KanbanCard({ task }: Props) {
         return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
     };
 
+    const handleCardClick = () => {
+        navigate(`/projects/${project.id}/tasks/${task.id}${task.is_archive ? '?archived=true' : ''}`, { state: { project } });
+    };
+
+    const handleDotsClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(prev => !prev);
+    };
+
+    const handleEditClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        onEdit?.(task);
+    };
+
+    const handleArchiveClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        onArchive?.(task);
+    };
+
+    const handleDeleteClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        onDelete?.(task);
+    };
+
     return (
-        <div ref={setNodeRef} {...listeners} {...attributes} className={`${styles.card} ${isDragging ? styles.dragging : ''}`} style={style}>
+        <div ref={setNodeRef} {...listeners} {...attributes} className={`${styles.card} ${isDragging ? styles.dragging : ''}`} style={style} onClick={handleCardClick}>
             <div className={styles.body}>
                 <div className={styles.topRow}>
                     <span className={styles.priorityBadge} style={{ backgroundColor: task.priority.color + '20', color: task.priority.color }}>
                         {task.priority.title}
                     </span>
-                    <span className={styles.id}>#{task.id}</span>
+                    <div className={styles.idWrap}>
+                        <span className={styles.id}>#{task.id}</span>
+                        <button className={styles.dotsBtn} onClick={handleDotsClick}>&#8942;</button>
+                        {menuOpen && (
+                            <div className={styles.dropdown} onClick={e => e.stopPropagation()}>
+                                <button className={styles.dropdownItem} onClick={handleEditClick}>
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                    Редактировать
+                                </button>
+                                <button className={styles.dropdownItem} onClick={handleArchiveClick}>
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                                    {task.is_archive ? 'Восстановить' : 'В архив'}
+                                </button>
+                                <button className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`} onClick={handleDeleteClick}>
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                    Удалить
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <h4 className={styles.title}>{task.title}</h4>
                 <div className={styles.bottomRow}>
                     {task.assignee ? (
                         <div className={styles.assignee}>
-                            <div className={styles.avatar}>
-                                <img src={avatarImages[0]} alt={task.assignee.name} />
-                            </div>
+                            <Avatar name={task.assignee.name} avatarUrl={task.assignee.avatar_url} size={24} />
                         </div>
                     ) : (
                         <span className={styles.noAssignee}>Не назначен</span>

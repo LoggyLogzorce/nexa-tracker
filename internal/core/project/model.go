@@ -28,9 +28,10 @@ type ProjectResponse struct {
 
 	CreatedAt time.Time `json:"created_at"`
 	Owner     struct {
-		ID    uuid.UUID `json:"id"`
-		Name  string    `json:"name"`
-		Email string    `json:"email"`
+		ID        uuid.UUID `json:"id"`
+		Name      string    `json:"name"`
+		Email     string    `json:"email"`
+		AvatarUrl string    `json:"avatar_url"`
 	} `json:"owner"`
 	Status     *string             `json:"status"`
 	Priority   *string             `json:"priority"`

@@ -4,6 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -17,7 +21,8 @@ type Service interface {
 	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
 	GetByEmail(ctx context.Context, email string) (*User, error)
 	SearchByEmail(ctx context.Context, query string) ([]UserResponse, error)
-	Update(ctx context.Context, user *User) error
+	Update(ctx context.Context, user *User) (*UserResponse, error)
+	UploadAvatar(ctx context.Context, userID uuid.UUID, filename string, file io.Reader, uploadPath string) (*UserResponse, error)
 	Delete(ctx context.Context, id uuid.UUID, password string) error
 	EmailExists(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
 }
@@ -62,11 +67,76 @@ func (s *service) SearchByEmail(ctx context.Context, query string) ([]UserRespon
 	return responses, nil
 }
 
-func (s *service) Update(ctx context.Context, user *User) error {
+func (s *service) Update(ctx context.Context, user *User) (*UserResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return s.repo.Update(ctxT, user)
+	userOld, err := s.repo.GetByID(ctxT, user.ID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	userOld.Name = user.Name
+
+	if err := s.repo.Update(ctxT, userOld); err != nil {
+		return nil, err
+	}
+	return userOld.ToResponse(), nil
+}
+
+func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, filename string, file io.Reader, uploadPath string) (*UserResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	user, err := s.repo.GetByID(ctxT, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrUserNotFound
+		}
+		return nil, err
+	}
+
+	fileUID := uuid.New().String()
+	ext := filepath.Ext(filename)
+	storedName := fileUID + ext
+
+	avatarDir := filepath.Join(uploadPath, "avatars")
+	if err := os.MkdirAll(avatarDir, 0755); err != nil {
+		log.Printf("Failed to create avatar directory: %v", err)
+		return nil, fmt.Errorf("failed to create avatar directory: %w", err)
+	}
+
+	filePath := filepath.Join(avatarDir, storedName)
+	dst, err := os.Create(filePath)
+	if err != nil {
+		log.Printf("Failed to create avatar file: %v", err)
+		return nil, fmt.Errorf("failed to create avatar file: %w", err)
+	}
+	defer dst.Close()
+
+	if _, err := io.Copy(dst, file); err != nil {
+		os.Remove(filePath)
+		log.Printf("Failed to write avatar file: %v", err)
+		return nil, fmt.Errorf("failed to write avatar file: %w", err)
+	}
+
+	// Remove old avatar if exists
+	if user.AvatarUrl != "" {
+		if err := os.Remove(user.AvatarUrl); err != nil && !os.IsNotExist(err) {
+			log.Printf("Failed to remove old avatar: %v", err)
+		}
+	}
+
+	user.AvatarUrl = "/uploads/avatars/" + storedName
+	if err := s.repo.Update(ctxT, user); err != nil {
+		os.Remove(filePath)
+		return nil, err
+	}
+
+	return user.ToResponse(), nil
 }
 
 func (s *service) Delete(ctx context.Context, id uuid.UUID, password string) error {

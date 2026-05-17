@@ -15,6 +15,7 @@ export interface TaskUser {
     id: string;
     name: string;
     email: string;
+    avatar_url?: string;
 }
 
 export interface Task {
@@ -39,6 +40,7 @@ export interface ProjectMember {
         user_id: string;
         name: string;
         email: string;
+        avatar_url?: string;
     };
 }
 
