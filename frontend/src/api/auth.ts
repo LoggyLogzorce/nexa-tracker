@@ -42,8 +42,8 @@ export const updateUserMeApi = async (data: { name?: string; email?: string }): 
     return extractData(response.data);
 };
 
-export const deleteUserMeApi = async (): Promise<void> => {
-    await client.delete('/users/me');
+export const deleteUserMeApi = async (password: string): Promise<void> => {
+    await client.delete('/users/me', { data: { password } });
 };
 
 export const uploadAvatarApi = async (file: File): Promise<UserResponse> => {
@@ -53,4 +53,9 @@ export const uploadAvatarApi = async (file: File): Promise<UserResponse> => {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
     return extractData(response.data);
+};
+
+export const changePasswordApi = async (data: { current_password: string; new_password: string }): Promise<void> => {
+    const response = await client.put<ApiResponse>('/users/me/change-password', data);
+    extractData(response.data);
 };

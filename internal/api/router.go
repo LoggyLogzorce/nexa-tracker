@@ -107,6 +107,7 @@ func (r *Router) Setup() *gin.Engine {
 				users.PUT("/me/avatar", r.handlers.UserHdl.UploadAvatar)
 				users.DELETE("/me", r.handlers.UserHdl.DeleteMe)
 				users.GET("/search", r.handlers.UserHdl.SearchUsers)
+				users.PUT("/me/change-password", r.handlers.AuthHdl.ChangePassword)
 			}
 
 			protected.GET("/tasks/me", r.handlers.TaskHdl.GetByUserID)

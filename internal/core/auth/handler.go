@@ -2,8 +2,10 @@ package auth
 
 import (
 	"errors"
+	"github.com/google/uuid"
 	"log"
 	"net/http"
+	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/pkg/validation"
 	"os"
 	"time"
@@ -87,6 +89,11 @@ type LoginRequest struct {
 
 type Verify2FARequest struct {
 	Code string `json:"code" binding:"required,len=6"`
+}
+
+type ChangePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"omitempty,min=8"`
+	NewPassword     string `json:"new_password" binding:"omitempty,min=8"`
 }
 
 func (h *Handler) Register(c *gin.Context) {
@@ -223,6 +230,34 @@ func (h *Handler) Logout(c *gin.Context) {
 	response.Success(c, http.StatusOK, gin.H{
 		"message": "Logged out successfully",
 	})
+}
+
+func (h *Handler) ChangePassword(c *gin.Context) {
+	uID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "User ID not found")
+		return
+	}
+
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		status, msg := validation.ParseError(err)
+		response.Error(c, status, msg)
+		return
+	}
+
+	if err := h.service.ChangePassword(c.Request.Context(), uID.(uuid.UUID), req); err != nil {
+		switch {
+		case errors.Is(err, ErrUserNotFound):
+			response.Error(c, http.StatusNotFound, "User not found")
+		case errors.Is(err, ErrInvalidCredentials):
+			response.Error(c, http.StatusUnauthorized, "Invalid credentials")
+		default:
+			response.Error(c, http.StatusInternalServerError, "Failed to change password")
+		}
+		return
+	}
+	response.Success(c, http.StatusOK, "Change password successfully")
 }
 
 func (h *Handler) Setup2FA(c *gin.Context) {

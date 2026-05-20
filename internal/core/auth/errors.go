@@ -8,4 +8,5 @@ var (
 	ErrInvalidToken       = errors.New("invalid token")
 	ErrTokenExpired       = errors.New("token expired")
 	ErrInvalid2FACode     = errors.New("invalid 2FA code")
+	ErrUserNotFound       = errors.New("user not found")
 )

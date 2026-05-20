@@ -12,7 +12,7 @@ interface Props { onToggleSidebar?: () => void; }
 export default function Header({ onToggleSidebar }: Props) {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [notifOpen, setNotifOpen] = useState(false);
+    // const [notifOpen, setNotifOpen] = useState(false);
     const [query, setQuery] = useState('');
     const [tasks, setTasks] = useState<Task[]>([]);
     const [projects, setProjects] = useState<Project[]>([]);
@@ -124,25 +124,25 @@ export default function Header({ onToggleSidebar }: Props) {
                 )}
             </div>
             <div className={styles.actions}>
-                <div className={styles.notifWrap}>
-                    <button className={styles.notifBtn} onClick={() => setNotifOpen(!notifOpen)}>
-                        <span className={styles.badge}></span>
-                        <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
-                    </button>
-                    {notifOpen && (
-                        <div className={styles.notifPanel}>
-                            <div className={styles.notifHeader}><h3>Уведомления</h3></div>
-                            <div className={styles.notifList}>
-                                <div className={styles.notifItem}>
-                                    <p className={styles.notifTitle}>Новая задача назначена</p>
-                                    <p className={styles.notifDesc}>В проекте "Редизайн мобильного приложения"</p>
-                                    <span className={styles.notifTime}>5 минут назад</span>
-                                </div>
-                            </div>
-                            <div className={styles.notifFooter}><button>Показать все</button></div>
-                        </div>
-                    )}
-                </div>
+                {/*<div className={styles.notifWrap}>*/}
+                {/*    <button className={styles.notifBtn} onClick={() => setNotifOpen(!notifOpen)}>*/}
+                {/*        <span className={styles.badge}></span>*/}
+                {/*        <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>*/}
+                {/*    </button>*/}
+                {/*    {notifOpen && (*/}
+                {/*        <div className={styles.notifPanel}>*/}
+                {/*            <div className={styles.notifHeader}><h3>Уведомления</h3></div>*/}
+                {/*            <div className={styles.notifList}>*/}
+                {/*                <div className={styles.notifItem}>*/}
+                {/*                    <p className={styles.notifTitle}>Новая задача назначена</p>*/}
+                {/*                    <p className={styles.notifDesc}>В проекте "Редизайн мобильного приложения"</p>*/}
+                {/*                    <span className={styles.notifTime}>5 минут назад</span>*/}
+                {/*                </div>*/}
+                {/*            </div>*/}
+                {/*            <div className={styles.notifFooter}><button>Показать все</button></div>*/}
+                {/*        </div>*/}
+                {/*    )}*/}
+                {/*</div>*/}
                     <Link to="/profile" className={styles.profile}>
                         <div className={styles.userInfo}>
                             <p className={styles.userName}>{user?.name || 'Пользователь'}</p>

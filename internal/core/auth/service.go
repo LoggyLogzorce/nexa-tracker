@@ -21,6 +21,7 @@ type Service interface {
 	RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, refreshToken string) error
 	HandleUserDeleted(event events.Event) error
+	ChangePassword(ctx context.Context, id uuid.UUID, req ChangePasswordRequest) error
 	Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error)
 	Verify2FA(ctx context.Context, userID, code string) error
 	Enable2FA(ctx context.Context, userID, code string) error
@@ -252,6 +253,33 @@ func (s *service) HandleUserDeleted(event events.Event) error {
 	defer cancel()
 
 	return s.repo.RevokeAllUserTokens(ctxT, data.UserID)
+}
+
+func (s *service) ChangePassword(ctx context.Context, id uuid.UUID, req ChangePasswordRequest) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	user, err := s.userRepo.GetByID(ctxT, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrUserNotFound
+		}
+		return err
+	}
+
+	if err := hash.Compare(user.PasswordHash, req.CurrentPassword); err != nil {
+		return ErrInvalidCredentials
+	}
+
+	// Hash password
+	hashedPassword, err := hash.Generate(req.NewPassword)
+	if err != nil {
+		return err
+	}
+
+	user.PasswordHash = hashedPassword
+
+	return s.userRepo.Update(ctx, user)
 }
 
 func (s *service) Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error) {
