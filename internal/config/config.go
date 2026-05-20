@@ -59,7 +59,6 @@ type CookieConfig struct {
 }
 
 func Load() (*Config, error) {
-	// TODO: Load from .env file
 	accessExpiry, err := time.ParseDuration(getEnv("JWT_ACCESS_EXPIRY", "15m"))
 	if err != nil {
 		return nil, fmt.Errorf("JWT_ACCESS_EXPIRY invalid: %w", err)

@@ -3,13 +3,13 @@ package main
 import (
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"log"
 	"os"
 	_ "os"
 	"os/signal"
 	"syscall"
 
-	"github.com/joho/godotenv"
 	"nexa-task-tracker/internal/api"
 	"nexa-task-tracker/internal/config"
 	"nexa-task-tracker/internal/core/attachment"
@@ -26,11 +26,15 @@ import (
 )
 
 func main() {
-	gin.SetMode(gin.DebugMode)
+	if os.Getenv("ENV") == "development" {
+		gin.SetMode(gin.DebugMode)
 
-	// Load .env file
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using environment variables")
+		// Load .env file
+		if err := godotenv.Load(); err != nil {
+			log.Println("No .env file found, using environment variables")
+		}
+	} else {
+		gin.SetMode(gin.ReleaseMode)
 	}
 
 	// Load configuration

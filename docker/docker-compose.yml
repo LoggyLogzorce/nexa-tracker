@@ -1,6 +1,22 @@
 version: '3.8'
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nexa_task_tracker
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - nexa-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   app:
     build:
       context: ..
@@ -8,34 +24,46 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SERVER_HOST=0.0.0.0
-      - SERVER_PORT=8080
-      - DB_HOST=postgres
-      - DB_PORT=5432
-      - DB_USER=postgres
-      - DB_PASSWORD=postgres
-      - DB_NAME=nexa_task_tracker
-      - DB_SSLMODE=disable
-      - JWT_SECRET=your-secret-key-change-in-production
-      - JWT_ACCESS_EXPIRY=15m
-      - JWT_REFRESH_EXPIRY=7d
+      ENV: development
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: nexa_task_tracker
+      DB_SSLMODE: disable
+      JWT_SECRET: change-me-in-production
+      JWT_ACCESS_EXPIRY: 15m
+      JWT_REFRESH_EXPIRY: 168h
+      COOKIE_DOMAIN: ""
+      COOKIE_SAMESITE: 1
+      CORS_ORIGINS: "http://localhost:3000,http://192.168.3.69:3000"
     volumes:
       - attachments:/var/data/nexa-tracker
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -qO- http://localhost:8080/health || exit 1" ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     networks:
       - nexa-network
 
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=nexa_task_tracker
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.frontend
+      args:
+        VITE_API_URL: http://192.168.3.69:8080
     ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - "3000:3000"
+    depends_on:
+      app:
+        condition: service_healthy
     networks:
       - nexa-network
 
