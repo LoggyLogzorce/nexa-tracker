@@ -38,7 +38,7 @@ services:
       JWT_REFRESH_EXPIRY: 168h
       COOKIE_DOMAIN: ""
       COOKIE_SAMESITE: 1
-      CORS_ORIGINS: "http://localhost:3000,http://192.168.3.69:3000"
+      CORS_ORIGINS: "http://185.246.222.134:3000"
     volumes:
       - attachments:/var/data/nexa-tracker
     healthcheck:
@@ -58,7 +58,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.frontend
       args:
-        VITE_API_URL: http://192.168.3.69:8080
+        VITE_API_URL: http://185.246.222.134:8080
     ports:
       - "3000:3000"
     depends_on:

@@ -7,11 +7,11 @@ export default defineConfig({
     allowedHosts: ['task.nexa.test'],
     proxy: {
       '/api': {
-        target: 'http://192.168.3.69:8080',
+        target: 'http://185.246.222.134:8080',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://192.168.3.69:8080',
+        target: 'http://185.246.222.134:8080',
         changeOrigin: true,
       },
     },
