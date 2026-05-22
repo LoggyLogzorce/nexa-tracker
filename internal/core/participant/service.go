@@ -6,15 +6,16 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/models"
 	"time"
 )
 
 type Service interface {
-	AddParticipant(ctx context.Context, participant *ProjectParticipant) error
+	AddParticipant(ctx context.Context, participant *models.ProjectParticipant) error
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]ProjectParticipantsResponse, error)
-	GetByUserID(ctx context.Context, userID string) ([]ProjectParticipant, error)
-	UpdateRole(ctx context.Context, participant *ProjectParticipant) error
-	RemoveParticipant(ctx context.Context, participant *ProjectParticipant) error
+	GetByUserID(ctx context.Context, userID string) ([]models.ProjectParticipant, error)
+	UpdateRole(ctx context.Context, participant *models.ProjectParticipant) error
+	RemoveParticipant(ctx context.Context, participant *models.ProjectParticipant) error
 	CheckAccess(ctx context.Context, projectID uuid.UUID, userID string, requiredRole string) (bool, error)
 }
 
@@ -30,7 +31,7 @@ func NewService(repo Repository, userRepo user.Repository) Service {
 	}
 }
 
-func (s *service) AddParticipant(ctx context.Context, participant *ProjectParticipant) error {
+func (s *service) AddParticipant(ctx context.Context, participant *models.ProjectParticipant) error {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -92,12 +93,12 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Pr
 	return participantsResponse, nil
 }
 
-func (s *service) GetByUserID(ctx context.Context, userID string) ([]ProjectParticipant, error) {
+func (s *service) GetByUserID(ctx context.Context, userID string) ([]models.ProjectParticipant, error) {
 	// TODO: Implement
 	return nil, nil
 }
 
-func (s *service) UpdateRole(ctx context.Context, participant *ProjectParticipant) error {
+func (s *service) UpdateRole(ctx context.Context, participant *models.ProjectParticipant) error {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -112,7 +113,7 @@ func (s *service) UpdateRole(ctx context.Context, participant *ProjectParticipan
 	return s.repo.Update(ctxT, participant)
 }
 
-func (s *service) RemoveParticipant(ctx context.Context, participant *ProjectParticipant) error {
+func (s *service) RemoveParticipant(ctx context.Context, participant *models.ProjectParticipant) error {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -131,5 +132,3 @@ func (s *service) CheckAccess(ctx context.Context, projectID uuid.UUID, userID s
 	// TODO: Implement role hierarchy check
 	return false, nil
 }
-
-// TODO удаление участников при удалении проекта

@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/validation"
 	"time"
 )
 
 type Service interface {
-	Create(ctx context.Context, priority *Priority) error
-	GetByID(ctx context.Context, id uint) (*Priority, error)
-	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Priority, error)
-	Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdatePriorityRequest) (*Priority, error)
+	Create(ctx context.Context, priority *models.Priority) error
+	GetByID(ctx context.Context, id uint) (*models.Priority, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]models.Priority, error)
+	Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdatePriorityRequest) (*models.Priority, error)
 	Delete(ctx context.Context, id uint, projectID uuid.UUID) error
 	HandleProjectCreated(event events.Event) error
 	HandleProjectDeleted(event events.Event) error
@@ -29,7 +30,7 @@ func NewService(repo Repository) Service {
 	return &service{repo: repo}
 }
 
-func (s *service) Create(ctx context.Context, priority *Priority) error {
+func (s *service) Create(ctx context.Context, priority *models.Priority) error {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -57,7 +58,7 @@ func (s *service) Create(ctx context.Context, priority *Priority) error {
 	return nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*Priority, error) {
+func (s *service) GetByID(ctx context.Context, id uint) (*models.Priority, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -72,7 +73,7 @@ func (s *service) GetByID(ctx context.Context, id uint) (*Priority, error) {
 	return priority, nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Priority, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]models.Priority, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -85,7 +86,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Pr
 	return priorities, nil
 }
 
-func (s *service) Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdatePriorityRequest) (*Priority, error) {
+func (s *service) Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdatePriorityRequest) (*models.Priority, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -178,7 +179,7 @@ func (s *service) HandleProjectCreated(event events.Event) error {
 		return fmt.Errorf("invalid event data type")
 	}
 
-	defaultPriorities := []Priority{
+	defaultPriorities := []models.Priority{
 		{ProjectID: data.ProjectID, Title: "Low", Color: "#22c55e"},    // зелёный
 		{ProjectID: data.ProjectID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
 		{ProjectID: data.ProjectID, Title: "High", Color: "#ef4444"},   // красный

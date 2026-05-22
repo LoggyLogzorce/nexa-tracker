@@ -3,6 +3,7 @@ package priority
 import (
 	"errors"
 	"net/http"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"strconv"
 
@@ -48,7 +49,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 3. Создать модель приоритета
-	priority := &Priority{
+	priority := &models.Priority{
 		ProjectID: projectID,
 		Title:     req.Title,
 		Color:     req.Color,

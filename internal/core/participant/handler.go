@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
 )
@@ -47,7 +48,7 @@ func (h *Handler) AddParticipant(c *gin.Context) {
 		return
 	}
 
-	participant := &ProjectParticipant{
+	participant := &models.ProjectParticipant{
 		ProjectID: projectID,
 		UserID:    userID,
 		Role:      req.Role,
@@ -105,7 +106,7 @@ func (h *Handler) UpdateRole(c *gin.Context) {
 		return
 	}
 
-	participant := &ProjectParticipant{
+	participant := &models.ProjectParticipant{
 		ProjectID: projectID,
 		UserID:    userIdUUID,
 		Role:      req.Role,
@@ -139,7 +140,7 @@ func (h *Handler) RemoveParticipant(c *gin.Context) {
 		return
 	}
 
-	participant := &ProjectParticipant{
+	participant := &models.ProjectParticipant{
 		ProjectID: projectID,
 		UserID:    userIdUUID,
 	}

@@ -12,12 +12,13 @@ import (
 	"nexa-task-tracker/internal/core/project"
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
 type Service interface {
-	Create(ctx context.Context, task *Task) (*TaskResponse, error)
+	Create(ctx context.Context, task *models.Task) (*TaskResponse, error)
 	GetByID(ctx context.Context, id uint, param string) (*TaskResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param Param) ([]TaskResponse, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID, param Param) ([]TaskResponse, error)
@@ -56,7 +57,7 @@ type FieldChange struct {
 	NewValue any    `json:"new_value"`
 }
 
-func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error) {
+func (s *service) Create(ctx context.Context, task *models.Task) (*TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
@@ -83,7 +84,7 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 		IsArchive: false,
 	}
 
-	var st *status.Status
+	var st *models.Status
 	var err error
 	if task.StatusID != nil {
 		st, err = s.statusRepo.GetByID(ctxT, *task.StatusID)
@@ -104,7 +105,7 @@ func (s *service) Create(ctx context.Context, task *Task) (*TaskResponse, error)
 		}
 	}
 
-	var pr *priority.Priority
+	var pr *models.Priority
 	if task.PriorityID != nil {
 		pr, err = s.priorityRepo.GetByID(ctxT, *task.PriorityID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -215,7 +216,7 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 		taskRes.Deadline = &deadLine
 	}
 
-	var status *status.Status
+	var status *models.Status
 	if task.StatusID != nil {
 		status, err = s.statusRepo.GetByID(ctxT, *task.StatusID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -232,7 +233,7 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 		}
 	}
 
-	var priority *priority.Priority
+	var priority *models.Priority
 	if task.PriorityID != nil {
 		priority, err = s.priorityRepo.GetByID(ctxT, *task.PriorityID)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -260,7 +261,7 @@ func (s *service) GetByID(ctx context.Context, id uint, param string) (*TaskResp
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, 2)
+	usersMap := make(map[uuid.UUID]models.User, 2)
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
@@ -329,7 +330,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
@@ -343,7 +344,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 	if err != nil {
 		return nil, err
 	}
-	statusesMap := make(map[uint]status.Status, len(statuses))
+	statusesMap := make(map[uint]models.Status, len(statuses))
 	for _, st := range statuses {
 		statusesMap[st.ID] = st
 	}
@@ -357,7 +358,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID, param
 	if err != nil {
 		return nil, err
 	}
-	prioritiesMap := make(map[uint]priority.Priority, len(priorities))
+	prioritiesMap := make(map[uint]models.Priority, len(priorities))
 	for _, p := range priorities {
 		prioritiesMap[p.ID] = p
 	}
@@ -438,7 +439,7 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 	ctxT, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
-	var tasks []Task
+	var tasks []models.Task
 	var err error
 	archived := false
 	if param.Archived == "true" {
@@ -485,7 +486,7 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
@@ -499,7 +500,7 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 	if err != nil {
 		return nil, err
 	}
-	statusesMap := make(map[uint]status.Status, len(statuses))
+	statusesMap := make(map[uint]models.Status, len(statuses))
 	for _, st := range statuses {
 		statusesMap[st.ID] = st
 	}
@@ -513,7 +514,7 @@ func (s *service) GetByUserID(ctx context.Context, userID uuid.UUID, param Param
 	if err != nil {
 		return nil, err
 	}
-	prioritiesMap := make(map[uint]priority.Priority, len(priorities))
+	prioritiesMap := make(map[uint]models.Priority, len(priorities))
 	for _, p := range priorities {
 		prioritiesMap[p.ID] = p
 	}
@@ -673,7 +674,7 @@ func (s *service) Search(ctx context.Context, q string, userID uuid.UUID) ([]Tas
 	for id := range userIDsMap {
 		userIDs = append(userIDs, id)
 	}
-	usersMap := make(map[uuid.UUID]user.User)
+	usersMap := make(map[uuid.UUID]models.User)
 	if len(userIDs) > 0 {
 		users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
 		if err == nil {
@@ -943,7 +944,7 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 	}
 
 	now := time.Now()
-	history := &UpdateHistory{
+	history := &models.UpdateHistory{
 		CreatedAt: now,
 		UserID:    userID,
 		TaskID:    taskNew.ID,
@@ -1007,7 +1008,7 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"nexa-task-tracker/internal/models"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,10 +19,10 @@ import (
 )
 
 type Service interface {
-	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
-	GetByEmail(ctx context.Context, email string) (*User, error)
+	GetByID(ctx context.Context, id uuid.UUID) (*UserResponse, error)
+	GetByEmail(ctx context.Context, email string) (*UserResponse, error)
 	SearchByEmail(ctx context.Context, query string) ([]UserResponse, error)
-	Update(ctx context.Context, user *User) (*UserResponse, error)
+	Update(ctx context.Context, user *models.User) (*UserResponse, error)
 	UploadAvatar(ctx context.Context, userID uuid.UUID, filename string, file io.Reader, uploadPath string) (*UserResponse, error)
 	Delete(ctx context.Context, id uuid.UUID, password string) error
 	EmailExists(ctx context.Context, email string, excludeUserID uuid.UUID) (bool, error)
@@ -39,14 +40,28 @@ func NewService(repo Repository, eventBus *events.EventBus) Service {
 	}
 }
 
-func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
+func (s *service) GetByID(ctx context.Context, id uuid.UUID) (*UserResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	return s.repo.GetByID(ctxT, id)
+	user, err := s.repo.GetByID(ctxT, id)
+	if err != nil {
+		return nil, err
+	}
+
+	userResponse := &UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		Role:      user.Role,
+		AvatarUrl: user.AvatarUrl,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+	return userResponse, nil
 }
 
-func (s *service) GetByEmail(ctx context.Context, email string) (*User, error) {
+func (s *service) GetByEmail(ctx context.Context, email string) (*UserResponse, error) {
 	// TODO: Implement
 	return nil, nil
 }
@@ -62,12 +77,21 @@ func (s *service) SearchByEmail(ctx context.Context, query string) ([]UserRespon
 
 	responses := make([]UserResponse, 0, len(users))
 	for i := range users {
-		responses = append(responses, *users[i].ToResponse())
+		userResponse := UserResponse{
+			ID:        users[i].ID,
+			Email:     users[i].Email,
+			Name:      users[i].Name,
+			Role:      users[i].Role,
+			AvatarUrl: users[i].AvatarUrl,
+			CreatedAt: users[i].CreatedAt,
+			UpdatedAt: users[i].UpdatedAt,
+		}
+		responses = append(responses, userResponse)
 	}
 	return responses, nil
 }
 
-func (s *service) Update(ctx context.Context, user *User) (*UserResponse, error) {
+func (s *service) Update(ctx context.Context, user *models.User) (*UserResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -84,7 +108,16 @@ func (s *service) Update(ctx context.Context, user *User) (*UserResponse, error)
 	if err := s.repo.Update(ctxT, userOld); err != nil {
 		return nil, err
 	}
-	return userOld.ToResponse(), nil
+	userResponse := &UserResponse{
+		ID:        userOld.ID,
+		Email:     userOld.Email,
+		Name:      userOld.Name,
+		Role:      userOld.Role,
+		AvatarUrl: userOld.AvatarUrl,
+		CreatedAt: userOld.CreatedAt,
+		UpdatedAt: userOld.UpdatedAt,
+	}
+	return userResponse, nil
 }
 
 func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, filename string, file io.Reader, uploadPath string) (*UserResponse, error) {
@@ -136,7 +169,16 @@ func (s *service) UploadAvatar(ctx context.Context, userID uuid.UUID, filename s
 		return nil, err
 	}
 
-	return user.ToResponse(), nil
+	userResponse := &UserResponse{
+		ID:        user.ID,
+		Email:     user.Email,
+		Name:      user.Name,
+		Role:      user.Role,
+		AvatarUrl: user.AvatarUrl,
+		CreatedAt: user.CreatedAt,
+		UpdatedAt: user.UpdatedAt,
+	}
+	return userResponse, nil
 }
 
 func (s *service) Delete(ctx context.Context, id uuid.UUID, password string) error {

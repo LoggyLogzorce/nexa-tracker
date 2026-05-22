@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/response"
 	"path/filepath"
 	"regexp"
@@ -53,7 +54,7 @@ func (h *Handler) GetMe(c *gin.Context) {
 	}
 
 	// Return user data via DTO
-	response.Success(c, http.StatusOK, user.ToResponse())
+	response.Success(c, http.StatusOK, user)
 }
 
 func (h *Handler) UpdateMe(c *gin.Context) {
@@ -71,7 +72,7 @@ func (h *Handler) UpdateMe(c *gin.Context) {
 		return
 	}
 
-	user := &User{
+	user := &models.User{
 		ID: userID.(uuid.UUID),
 	}
 

@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
@@ -51,7 +52,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 3. Создать модель статуса
-	status := &Status{
+	status := &models.Status{
 		ProjectID:  projectID,
 		Name:       req.Name,
 		Color:      req.Color,

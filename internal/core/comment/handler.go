@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
 	"strconv"
@@ -44,7 +45,7 @@ func (h *Handler) Create(c *gin.Context) {
 		return
 	}
 
-	comment := &Comment{
+	comment := &models.Comment{
 		UserID:  userID.(uuid.UUID),
 		TaskID:  uint(taskID),
 		Content: req.Content,
@@ -102,7 +103,7 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	comment := &Comment{
+	comment := &models.Comment{
 		ID:      uint(commentID),
 		UserID:  userID.(uuid.UUID),
 		TaskID:  uint(taskID),

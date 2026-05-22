@@ -9,12 +9,13 @@ import (
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
 type Service interface {
-	Create(ctx context.Context, project *Project, ownerID uuid.UUID) (*ProjectResponse, error)
+	Create(ctx context.Context, project *models.Project, ownerID uuid.UUID) (*ProjectResponse, error)
 	GetByID(ctx context.Context, id uuid.UUID, userID uuid.UUID) (*ProjectResponse, error)
 	List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
 	ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectResponse, error)
@@ -55,7 +56,7 @@ var priorities = map[string]bool{
 	"high":   true,
 }
 
-func (s *service) Create(ctx context.Context, project *Project, ownerID uuid.UUID) (*ProjectResponse, error) {
+func (s *service) Create(ctx context.Context, project *models.Project, ownerID uuid.UUID) (*ProjectResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -172,7 +173,7 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 		ownerIDs = append(ownerIDs, projects[i].OwnerID)
 	}
 
-	ownerMap := make(map[uuid.UUID]user.User)
+	ownerMap := make(map[uuid.UUID]models.User)
 	if len(ownerIDs) > 0 {
 		owners, err := s.userRepo.GetListByIDs(ctxT, ownerIDs)
 		if err == nil {
@@ -198,7 +199,7 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 	if err != nil {
 		return nil, err
 	}
-	statusesMap := make(map[uuid.UUID][]status.Status, len(statuses))
+	statusesMap := make(map[uuid.UUID][]models.Status, len(statuses))
 	for _, st := range statuses {
 		statusesMap[st.ProjectID] = append(statusesMap[st.ProjectID], st)
 	}
@@ -208,7 +209,7 @@ func (s *service) List(ctx context.Context, userID uuid.UUID) ([]ProjectResponse
 	if err != nil {
 		return nil, err
 	}
-	prioritiesMap := make(map[uuid.UUID][]priority.Priority, len(priorities))
+	prioritiesMap := make(map[uuid.UUID][]models.Priority, len(priorities))
 	for _, p := range priorities {
 		prioritiesMap[p.ProjectID] = append(prioritiesMap[p.ProjectID], p)
 	}
@@ -287,7 +288,7 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 	if err != nil {
 		return nil, err
 	}
-	statusesMap := make(map[uuid.UUID][]status.Status, len(statuses))
+	statusesMap := make(map[uuid.UUID][]models.Status, len(statuses))
 	for _, st := range statuses {
 		statusesMap[st.ProjectID] = append(statusesMap[st.ProjectID], st)
 	}
@@ -297,7 +298,7 @@ func (s *service) ListOwned(ctx context.Context, userID uuid.UUID) ([]ProjectRes
 	if err != nil {
 		return nil, err
 	}
-	prioritiesMap := make(map[uuid.UUID][]priority.Priority, len(priorities))
+	prioritiesMap := make(map[uuid.UUID][]models.Priority, len(priorities))
 	for _, p := range priorities {
 		prioritiesMap[p.ProjectID] = append(prioritiesMap[p.ProjectID], p)
 	}

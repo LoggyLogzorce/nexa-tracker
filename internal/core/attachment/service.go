@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/models"
 	"os"
 	"path/filepath"
 	"time"
@@ -19,7 +20,7 @@ import (
 
 type Service interface {
 	Upload(ctx context.Context, taskID uint, userID uuid.UUID, filename string, file io.Reader) (*AttachmentResponse, error)
-	GetByID(ctx context.Context, id, taskID uint) (*Attachment, error)
+	GetByID(ctx context.Context, id, taskID uint) (*models.Attachment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentResponse, error)
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]AttachmentResponse, error)
 	Delete(ctx context.Context, id, taskID uint, userID uuid.UUID) error
@@ -93,7 +94,7 @@ func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, fil
 		return nil, err
 	}
 
-	attachment := &Attachment{
+	attachment := &models.Attachment{
 		TaskID:   taskID,
 		UserID:   userID,
 		Filename: filename,
@@ -126,7 +127,7 @@ func (s *service) Upload(ctx context.Context, taskID uint, userID uuid.UUID, fil
 	return attachRes, nil
 }
 
-func (s *service) GetByID(ctx context.Context, id, taskID uint) (*Attachment, error) {
+func (s *service) GetByID(ctx context.Context, id, taskID uint) (*models.Attachment, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -171,7 +172,7 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]AttachmentRes
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
@@ -239,7 +240,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]At
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}

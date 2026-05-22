@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"nexa-task-tracker/internal/models"
 	"time"
 
 	"nexa-task-tracker/internal/core/user"
@@ -73,7 +74,7 @@ func (s *service) Register(ctx context.Context, email, password string, name *st
 		userName = *name
 	}
 
-	newUser := &user.User{
+	newUser := &models.User{
 		ID:           uuid.New(),
 		Email:        email,
 		PasswordHash: hashedPassword,
@@ -128,7 +129,7 @@ func (s *service) Login(ctx context.Context, email, password, userAgent, ipAddre
 	hashedRefreshToken := hash.TokenHash(refreshToken)
 
 	// Save refresh token to database
-	refreshTokenRecord := &RefreshToken{
+	refreshTokenRecord := &models.RefreshToken{
 		UserID:    foundUser.ID,
 		TokenHash: hashedRefreshToken,
 		ExpiresAt: time.Now().Add(s.RefreshExpiry),
@@ -217,7 +218,7 @@ func (s *service) RefreshToken(ctx context.Context, refreshToken string) (access
 	newTokenHash := hash.TokenHash(newRefreshToken)
 
 	// 11. Сохранить новый refresh token в БД
-	newTokenRecord := &RefreshToken{
+	newTokenRecord := &models.RefreshToken{
 		UserID:    foundUser.ID,
 		TokenHash: newTokenHash,
 		ExpiresAt: time.Now().Add(168 * time.Hour),

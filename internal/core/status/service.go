@@ -6,16 +6,17 @@ import (
 	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/validation"
 	"time"
 )
 
 type Service interface {
-	Create(ctx context.Context, status *Status) error
-	GetByID(ctx context.Context, id uint) (*Status, error)
-	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error)
-	Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdateStatusRequest) (*Status, error)
+	Create(ctx context.Context, status *models.Status) error
+	GetByID(ctx context.Context, id uint) (*models.Status, error)
+	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]models.Status, error)
+	Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdateStatusRequest) (*models.Status, error)
 	Delete(ctx context.Context, id uint, projectID uuid.UUID) error
 	HandleProjectDeleted(event events.Event) error
 	HandleProjectCreated(event events.Event) error
@@ -31,7 +32,7 @@ func NewService(repo Repository) Service {
 	}
 }
 
-func (s *service) Create(ctx context.Context, status *Status) error {
+func (s *service) Create(ctx context.Context, status *models.Status) error {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -126,12 +127,12 @@ func (s *service) Create(ctx context.Context, status *Status) error {
 	return nil
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*Status, error) {
+func (s *service) GetByID(ctx context.Context, id uint) (*models.Status, error) {
 	// TODO: Implement
 	return nil, nil
 }
 
-func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]Status, error) {
+func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]models.Status, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -144,7 +145,7 @@ func (s *service) GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]St
 	return statuses, nil
 }
 
-func (s *service) Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdateStatusRequest) (*Status, error) {
+func (s *service) Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdateStatusRequest) (*models.Status, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -339,7 +340,7 @@ func (s *service) HandleProjectCreated(event events.Event) error {
 		return fmt.Errorf("invalid event data type")
 	}
 
-	defaultStatuses := []Status{
+	defaultStatuses := []models.Status{
 		{ProjectID: data.ProjectID, Name: "To Do", Color: "#808080", OrderIndex: 0},
 		{ProjectID: data.ProjectID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
 		{ProjectID: data.ProjectID, Name: "Done", Color: "#22c55e", OrderIndex: 2},

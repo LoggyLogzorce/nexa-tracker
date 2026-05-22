@@ -6,14 +6,15 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/user"
+	"nexa-task-tracker/internal/models"
 	"time"
 )
 
 type Service interface {
-	Create(ctx context.Context, comment *Comment) (*CommentResponse, error)
-	GetByID(ctx context.Context, id uint) (*Comment, error)
+	Create(ctx context.Context, comment *models.Comment) (*CommentResponse, error)
+	GetByID(ctx context.Context, id uint) (*models.Comment, error)
 	GetByTaskID(ctx context.Context, taskID uint) ([]CommentResponse, error)
-	Update(ctx context.Context, comment *Comment) (*CommentResponse, error)
+	Update(ctx context.Context, comment *models.Comment) (*CommentResponse, error)
 	Delete(ctx context.Context, id, taskID uint, userID uuid.UUID) error
 }
 
@@ -29,7 +30,7 @@ func NewService(repo Repository, userRepo user.Repository) Service {
 	}
 }
 
-func (s *service) Create(ctx context.Context, comment *Comment) (*CommentResponse, error) {
+func (s *service) Create(ctx context.Context, comment *models.Comment) (*CommentResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -60,7 +61,7 @@ func (s *service) Create(ctx context.Context, comment *Comment) (*CommentRespons
 	return commentRes, err
 }
 
-func (s *service) GetByID(ctx context.Context, id uint) (*Comment, error) {
+func (s *service) GetByID(ctx context.Context, id uint) (*models.Comment, error) {
 	// TODO: Implement
 	return nil, nil
 }
@@ -91,7 +92,7 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]CommentRespon
 	if err != nil {
 		return nil, err
 	}
-	usersMap := make(map[uuid.UUID]user.User, len(users))
+	usersMap := make(map[uuid.UUID]models.User, len(users))
 	for _, u := range users {
 		usersMap[u.ID] = u
 	}
@@ -118,7 +119,7 @@ func (s *service) GetByTaskID(ctx context.Context, taskID uint) ([]CommentRespon
 	return response, nil
 }
 
-func (s *service) Update(ctx context.Context, comment *Comment) (*CommentResponse, error) {
+func (s *service) Update(ctx context.Context, comment *models.Comment) (*CommentResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

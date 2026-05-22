@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/nullable"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
@@ -68,7 +69,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 	reporterID := rID.(uuid.UUID)
 
-	task := &Task{
+	task := &models.Task{
 		Title:       req.Title,
 		Description: req.Description,
 		Deadline:    req.Deadline,

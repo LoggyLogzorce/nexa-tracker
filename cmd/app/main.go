@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"log"
+	"nexa-task-tracker/internal/models"
 	"os"
 	_ "os"
 	"os/signal"
@@ -26,13 +27,13 @@ import (
 )
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("No .env file found, using environment variables")
+	}
+
 	if os.Getenv("ENV") == "development" {
 		gin.SetMode(gin.DebugMode)
-
-		// Load .env file
-		if err := godotenv.Load(); err != nil {
-			log.Println("No .env file found, using environment variables")
-		}
 	} else {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -58,16 +59,16 @@ func main() {
 
 	// Run migrations
 	if err := db.Migrate(database,
-		&user.User{},
-		&auth.RefreshToken{},
-		&project.Project{},
-		&participant.ProjectParticipant{},
-		&status.Status{},
-		&priority.Priority{},
-		&task.Task{},
-		&comment.Comment{},
-		&task.UpdateHistory{},
-		&attachment.Attachment{},
+		&models.User{},
+		&models.RefreshToken{},
+		&models.Project{},
+		&models.ProjectParticipant{},
+		&models.Status{},
+		&models.Priority{},
+		&models.Task{},
+		&models.Comment{},
+		&models.UpdateHistory{},
+		&models.Attachment{},
 	); err != nil {
 		log.Fatal("Failed to run migrations:", err)
 	}

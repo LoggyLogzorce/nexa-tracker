@@ -5,6 +5,7 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/models"
 	"nexa-task-tracker/internal/pkg/nullable"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
@@ -51,7 +52,7 @@ func (h *Handler) Create(c *gin.Context) {
 	}
 
 	// 3. Создать модель проекта
-	project := &Project{
+	project := &models.Project{
 		Title:       req.Title,
 		Description: req.Description,
 		Status:      req.Status,

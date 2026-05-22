@@ -4,15 +4,16 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"nexa-task-tracker/internal/models"
 )
 
 type Repository interface {
-	Create(ctx context.Context, user *User) error
-	GetByID(ctx context.Context, id uuid.UUID) (*User, error)
-	GetByEmail(ctx context.Context, email string) (*User, error)
-	GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error)
-	SearchByEmail(ctx context.Context, email string) ([]User, error)
-	Update(ctx context.Context, user *User) error
+	Create(ctx context.Context, user *models.User) error
+	GetByID(ctx context.Context, id uuid.UUID) (*models.User, error)
+	GetByEmail(ctx context.Context, email string) (*models.User, error)
+	GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]models.User, error)
+	SearchByEmail(ctx context.Context, email string) ([]models.User, error)
+	Update(ctx context.Context, user *models.User) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bool, error)
 }
@@ -25,12 +26,12 @@ func NewRepository(db *gorm.DB) Repository {
 	return &repository{db: db}
 }
 
-func (r *repository) Create(ctx context.Context, user *User) error {
+func (r *repository) Create(ctx context.Context, user *models.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }
 
-func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
-	var user User
+func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	var user models.User
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&user).Error
 	if err != nil {
 		return nil, err
@@ -38,8 +39,8 @@ func (r *repository) GetByID(ctx context.Context, id uuid.UUID) (*User, error) {
 	return &user, nil
 }
 
-func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error) {
-	var user User
+func (r *repository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+	var user models.User
 	err := r.db.WithContext(ctx).Where("email = ?", email).First(&user).Error
 	if err != nil {
 		return nil, err
@@ -47,18 +48,18 @@ func (r *repository) GetByEmail(ctx context.Context, email string) (*User, error
 	return &user, nil
 }
 
-func (r *repository) GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]User, error) {
-	var users []User
+func (r *repository) GetListByIDs(ctx context.Context, ids []uuid.UUID) ([]models.User, error) {
+	var users []models.User
 	err := r.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error
 	return users, err
 }
 
-func (r *repository) Update(ctx context.Context, user *User) error {
+func (r *repository) Update(ctx context.Context, user *models.User) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
 
 func (r *repository) Delete(ctx context.Context, id uuid.UUID) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&User{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&models.User{}).Error
 }
 
 func (r *repository) UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bool, error) {
@@ -74,8 +75,8 @@ func (r *repository) UserOwnsProjects(ctx context.Context, userID uuid.UUID) (bo
 	return count > 0, nil
 }
 
-func (r *repository) SearchByEmail(ctx context.Context, email string) ([]User, error) {
-	var users []User
+func (r *repository) SearchByEmail(ctx context.Context, email string) ([]models.User, error) {
+	var users []models.User
 	err := r.db.WithContext(ctx).
 		Where("email ILIKE ?", "%"+email+"%").
 		Find(&users).Error
