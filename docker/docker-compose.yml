@@ -1,33 +1,31 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: tracker-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: nexa_task_tracker
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    networks:
-      - nexa-network
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      - shared-network
 
   app:
     build:
       context: ..
       dockerfile: docker/Dockerfile
-    ports:
-      - "8080:8080"
+    container_name: tracker-backend
     environment:
-      ENV: development
+      ENV: production
       SERVER_HOST: 0.0.0.0
       SERVER_PORT: 8080
-      DB_HOST: postgres
+      DB_HOST: tracker-postgres
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: postgres
@@ -36,9 +34,9 @@ services:
       JWT_SECRET: change-me-in-production
       JWT_ACCESS_EXPIRY: 15m
       JWT_REFRESH_EXPIRY: 168h
-      COOKIE_DOMAIN: ""
+      COOKIE_DOMAIN: .kivoapps.ru
       COOKIE_SAMESITE: 1
-      CORS_ORIGINS: "http://185.246.222.134:3000"
+      CORS_ORIGINS: "https://tasks.kivoapps.ru:8443"
     volumes:
       - attachments:/var/data/nexa-tracker
     healthcheck:
@@ -50,27 +48,30 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    expose:
+      - "8080"
     networks:
-      - nexa-network
+      - shared-network
 
   frontend:
     build:
       context: ..
       dockerfile: docker/Dockerfile.frontend
       args:
-        VITE_API_URL: http://185.246.222.134:8080
-    ports:
-      - "3000:3000"
+        VITE_API_URL: https://tasks.kivoapps.ru:8443/api
+    container_name: tracker-frontend
     depends_on:
       app:
         condition: service_healthy
+    expose:
+      - "3000"
     networks:
-      - nexa-network
+      - shared-network
 
 volumes:
   postgres-data:
   attachments:
 
 networks:
-  nexa-network:
-    driver: bridge
+  shared-network:
+    external: true

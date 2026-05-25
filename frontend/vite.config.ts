@@ -4,14 +4,13 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
-    allowedHosts: ['task.nexa.test'],
+    allowedHosts: ['tasks.kivoapps.ru'],
     proxy: {
       '/api': {
-        target: 'http://185.246.222.134:8080',
-        changeOrigin: true,
-      },
+        target: 'https://tasks.kivoapps.ru:8443',
+
       '/uploads': {
-        target: 'http://185.246.222.134:8080',
+        target: 'https://tasks.kivoapps.ru:8443',
         changeOrigin: true,
       },
     },
