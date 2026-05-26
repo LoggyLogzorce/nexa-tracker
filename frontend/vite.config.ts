@@ -8,7 +8,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'https://tasks.kivoapps.ru:8443',
-
+      },
       '/uploads': {
         target: 'https://tasks.kivoapps.ru:8443',
         changeOrigin: true,
