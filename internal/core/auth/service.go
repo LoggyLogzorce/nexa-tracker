@@ -27,6 +27,8 @@ type Service interface {
 	Verify2FA(ctx context.Context, userID, code string) error
 	Enable2FA(ctx context.Context, userID, code string) error
 	Disable2FA(ctx context.Context, userID, code string) error
+	GetSessions(ctx context.Context, userID uuid.UUID, currentTokenHash string) ([]SessionResponse, error)
+	RevokeSession(ctx context.Context, userID uuid.UUID, sessionID uint) error
 }
 
 type service struct {
@@ -245,7 +247,7 @@ func (s *service) Logout(ctx context.Context, refreshToken string) error {
 }
 
 func (s *service) HandleUserDeleted(event events.Event) error {
-	data, ok := event.Data.(user.UserDeletedEvent)
+	data, ok := event.Data.(events.UserDeletedEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}
@@ -299,6 +301,84 @@ func (s *service) Enable2FA(ctx context.Context, userID, code string) error {
 }
 
 func (s *service) Disable2FA(ctx context.Context, userID, code string) error {
-	// TODO: Implement
 	return nil
+}
+
+func (s *service) GetSessions(ctx context.Context, userID uuid.UUID, currentTokenHash string) ([]SessionResponse, error) {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+
+	tokens, err := s.repo.GetUserSessions(ctxT, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	sessions := make([]SessionResponse, 0, len(tokens))
+	for _, t := range tokens {
+		deviceName := formatDeviceName(t.UserAgent)
+		sessions = append(sessions, SessionResponse{
+			ID:         t.ID,
+			DeviceName: deviceName,
+			IPAddress:  t.IPAddress,
+			LastActive: t.CreatedAt,
+			IsCurrent:  t.TokenHash == currentTokenHash,
+		})
+	}
+	return sessions, nil
+}
+
+func (s *service) RevokeSession(ctx context.Context, userID uuid.UUID, sessionID uint) error {
+	ctxT, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return s.repo.DeleteSessionByID(ctxT, userID, sessionID)
+}
+
+func formatDeviceName(userAgent *string) string {
+	if userAgent == nil || *userAgent == "" {
+		return "Неизвестное устройство"
+	}
+	ua := *userAgent
+
+	browser := "Браузер"
+	switch {
+	case contains(ua, "Edg/"):
+		browser = "Edge"
+	case contains(ua, "Chrome/") && !contains(ua, "Edg/"):
+		browser = "Chrome"
+	case contains(ua, "Firefox/") && !contains(ua, "SeaMonkey/"):
+		browser = "Firefox"
+	case contains(ua, "Safari/") && contains(ua, "Version/"):
+		browser = "Safari"
+	case contains(ua, "Opera/") || contains(ua, "OPR/"):
+		browser = "Opera"
+	}
+
+	os := "ОС"
+	switch {
+	case contains(ua, "Windows NT 10"):
+		os = "Windows 10/11"
+	case contains(ua, "Windows NT 6.3"):
+		os = "Windows 8.1"
+	case contains(ua, "Windows NT 6.1"):
+		os = "Windows 7"
+	case contains(ua, "Mac OS X"):
+		os = "macOS"
+	case contains(ua, "Android"):
+		os = "Android"
+	case contains(ua, "iPhone") || contains(ua, "iPad"):
+		os = "iOS"
+	case contains(ua, "Linux") && !contains(ua, "Android"):
+		os = "Linux"
+	}
+
+	return browser + " на " + os
+}
+
+func contains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"log"
+	"nexa-task-tracker/internal/core/auth/oauth"
 	"nexa-task-tracker/internal/models"
 	"os"
 	_ "os"
@@ -60,6 +61,7 @@ func main() {
 	// Run migrations
 	if err := db.Migrate(database,
 		&models.User{},
+		&models.UserProvider{},
 		&models.RefreshToken{},
 		&models.Project{},
 		&models.ProjectParticipant{},
@@ -98,6 +100,8 @@ func main() {
 	commentService := comment.NewService(commentRepo, userRepo)
 	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
 
+	googleOAuthService := oauth.NewGoogleOAuthService(config.NewGoogleConfig(cfg.Google), authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+
 	// Initialize handlers
 	userHandler := user.NewHandler(userService, cfg.Upload.Path)
 	authHandler := auth.NewHandler(authService, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry, eventBus)
@@ -109,6 +113,8 @@ func main() {
 	commentHandler := comment.NewHandler(commentService)
 	attachmentHandler := attachment.NewHandler(attachmentService)
 
+	oAuthHandler := oauth.NewOAuthHandler(googleOAuthService, cfg.Frontend.Url, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+
 	h := api.Handlers{
 		AuthHdl:        authHandler,
 		UserHdl:        userHandler,
@@ -119,6 +125,8 @@ func main() {
 		TaskHdl:        taskHandler,
 		CommentHdl:     commentHandler,
 		AttachmentHdl:  attachmentHandler,
+
+		OAuthHdl: oAuthHandler,
 	}
 
 	// Setup router

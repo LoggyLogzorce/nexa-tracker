@@ -5,6 +5,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"nexa-task-tracker/internal/core/attachment"
 	"nexa-task-tracker/internal/core/auth"
+	"nexa-task-tracker/internal/core/auth/oauth"
 	"nexa-task-tracker/internal/core/comment"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
@@ -25,6 +26,8 @@ type Handlers struct {
 	TaskHdl        *task.Handler
 	CommentHdl     *comment.Handler
 	AttachmentHdl  *attachment.Handler
+
+	OAuthHdl *oauth.Handler
 }
 
 type Router struct {
@@ -85,6 +88,9 @@ func (r *Router) Setup() *gin.Engine {
 			authGroup.POST("/refresh", r.handlers.AuthHdl.Refresh)
 			authGroup.POST("/logout", r.handlers.AuthHdl.Logout)
 
+			authGroup.GET("/google/login", r.handlers.OAuthHdl.GoogleLogin)
+			authGroup.GET("/google/callback", r.handlers.OAuthHdl.GoogleCallback)
+
 			// 2FA routes | не сделано
 			twoFA := authGroup.Group("/2fa")
 			{
@@ -108,6 +114,8 @@ func (r *Router) Setup() *gin.Engine {
 				users.DELETE("/me", r.handlers.UserHdl.DeleteMe)
 				users.GET("/search", r.handlers.UserHdl.SearchUsers)
 				users.PUT("/me/change-password", r.handlers.AuthHdl.ChangePassword)
+				users.GET("/me/sessions", r.handlers.AuthHdl.GetSessions)
+				users.DELETE("/me/sessions/:id", r.handlers.AuthHdl.RevokeSession)
 			}
 
 			protected.GET("/tasks/me", r.handlers.TaskHdl.GetByUserID)

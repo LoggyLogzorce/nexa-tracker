@@ -15,6 +15,11 @@ type Repository interface {
 	RevokeRefreshToken(ctx context.Context, tokenHash string) error
 	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
 	DeleteExpiredTokens(ctx context.Context) error
+	GetUserSessions(ctx context.Context, userID uuid.UUID) ([]models.RefreshToken, error)
+	DeleteSessionByID(ctx context.Context, userID uuid.UUID, sessionID uint) error
+
+	GetByProviderAndID(ctx context.Context, provider string, id string) (*models.UserProvider, error)
+	CreateUserProvider(ctx context.Context, up *models.UserProvider) error
 }
 
 type repository struct {
@@ -54,4 +59,32 @@ func (r *repository) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) 
 
 func (r *repository) DeleteExpiredTokens(ctx context.Context) error {
 	return r.db.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&models.RefreshToken{}).Error
+}
+
+func (r *repository) GetUserSessions(ctx context.Context, userID uuid.UUID) ([]models.RefreshToken, error) {
+	var tokens []models.RefreshToken
+	err := r.db.WithContext(ctx).
+		Where("user_id = ? AND revoked_at IS NULL AND expires_at > ?", userID, time.Now()).
+		Order("created_at DESC").
+		Find(&tokens).Error
+	if err != nil {
+		return nil, err
+	}
+	return tokens, nil
+}
+
+func (r *repository) DeleteSessionByID(ctx context.Context, userID uuid.UUID, sessionID uint) error {
+	return r.db.WithContext(ctx).Model(&models.RefreshToken{}).
+		Where("id = ? AND user_id = ? AND revoked_at IS NULL", sessionID, userID).
+		Delete(&models.RefreshToken{}).Error
+}
+
+func (r *repository) GetByProviderAndID(ctx context.Context, provider string, id string) (*models.UserProvider, error) {
+	var up models.UserProvider
+	err := r.db.WithContext(ctx).Where(&models.UserProvider{Provider: provider, ProviderUserID: id}).First(&up).Error
+	return &up, err
+}
+
+func (r *repository) CreateUserProvider(ctx context.Context, up *models.UserProvider) error {
+	return r.db.WithContext(ctx).Create(up).Error
 }

@@ -10,6 +10,16 @@ import (
 	"time"
 )
 
+type GoogleOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+}
+
+type Frontend struct {
+	Url string
+}
+
 type CORSConfig struct {
 	Origins []string
 }
@@ -22,6 +32,8 @@ type Config struct {
 	CORS     CORSConfig
 	Upload   UploadConfig
 	Modules  CustomModule
+	Google   GoogleOAuthConfig
+	Frontend Frontend
 }
 
 type UploadConfig struct {
@@ -117,6 +129,14 @@ func Load() (*Config, error) {
 		},
 		Modules: CustomModule{
 			Notify: notifyModule,
+		},
+		Google: GoogleOAuthConfig{
+			ClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
+			ClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
+			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
+		},
+		Frontend: Frontend{
+			Url: getEnv("FRONTEND_URL", "http://localhost:5173"),
 		},
 	}, nil
 }

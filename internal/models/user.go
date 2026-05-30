@@ -11,7 +11,7 @@ type User struct {
 	UpdatedAt time.Time `json:"updated_at"`
 
 	Email        string  `gorm:"uniqueIndex;not null;size:255" json:"email"`
-	PasswordHash string  `gorm:"not null;size:255" json:"-"`
+	PasswordHash string  `gorm:"not null;size:255;default:''" json:"-"`
 	Name         string  `gorm:"not null;size:50" json:"name"`
 	AvatarUrl    string  `gorm:"size:255" json:"avatar_url"`
 	Role         string  `gorm:"not null;default:'user';size:20" json:"role"` // admin, user

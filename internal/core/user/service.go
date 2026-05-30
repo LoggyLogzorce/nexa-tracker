@@ -225,7 +225,7 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, password string) err
 	//}
 
 	// 7. Опубликовать событие UserDeleted
-	event := UserDeletedEvent{
+	event := events.UserDeletedEvent{
 		UserID: id,
 		Email:  user.Email,
 		Name:   user.Name,

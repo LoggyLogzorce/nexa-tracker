@@ -1,5 +1,5 @@
 import client, { extractData } from './client';
-import type { LoginPayload, RegisterPayload, LoginResponse, UserResponse, ApiResponse } from '../types/auth';
+import type { LoginPayload, RegisterPayload, LoginResponse, UserResponse, ApiResponse, SessionDevice } from '../types/auth';
 
 let refreshPromise: Promise<LoginResponse> | null = null;
 
@@ -58,4 +58,18 @@ export const uploadAvatarApi = async (file: File): Promise<UserResponse> => {
 export const changePasswordApi = async (data: { current_password: string; new_password: string }): Promise<void> => {
     const response = await client.put<ApiResponse>('/users/me/change-password', data);
     extractData(response.data);
+};
+
+export const getSessionsApi = async (): Promise<SessionDevice[]> => {
+    const response = await client.get<ApiResponse<SessionDevice[]>>('/users/me/sessions');
+    return extractData(response.data);
+};
+
+export const deleteSessionApi = async (sessionId: number): Promise<void> => {
+    await client.delete(`/users/me/sessions/${sessionId}`);
+};
+
+export const getGoogleAuthUrlApi = async (): Promise<string> => {
+    const response = await client.get<ApiResponse<{ url: string }>>('/auth/google/login');
+    return extractData(response.data).url;
 };

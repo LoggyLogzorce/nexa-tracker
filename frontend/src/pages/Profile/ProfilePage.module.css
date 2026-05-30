@@ -17,6 +17,24 @@
 .label { font-size: 0.6875rem; font-weight: 600; color: #7b7f9e; text-transform: uppercase; letter-spacing: 0.5px; }
 .value { font-size: 0.875rem; color: #1e293b; }
 
+.sessionsCard { background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; margin-top: 1.5rem; }
+.sessionsHeader { display: flex; align-items: center; gap: 0.5rem; padding: 1rem 1.5rem; border-bottom: 1px solid #e2e8f0; color: #1e293b; }
+.sessionsHeader h2 { font-size: 0.9375rem; font-weight: 600; margin: 0; }
+.sessionsLoading, .sessionsEmpty { padding: 2rem 1.5rem; text-align: center; color: #7b7f9e; font-size: 0.875rem; }
+.sessionsList { display: flex; flex-direction: column; }
+.deviceItem { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 1.5rem; transition: background 0.15s; }
+.deviceItem:hover { background: #f8fafc; }
+.deviceItem + .deviceItem { border-top: 1px solid #f1f5f9; }
+.deviceIcon { flex-shrink: 0; color: #7b7f9e; }
+.deviceInfo { flex: 1; min-width: 0; }
+.deviceName { display: block; font-size: 0.875rem; font-weight: 500; color: #1e293b; }
+.deviceMeta { display: block; font-size: 0.75rem; color: #7b7f9e; margin-top: 0.125rem; }
+.deviceActions { flex-shrink: 0; }
+.currentBadge { display: inline-block; font-size: 0.6875rem; font-weight: 600; color: #059669; background: #ecfdf5; padding: 0.25rem 0.625rem; border-radius: 999px; white-space: nowrap; }
+.terminateBtn { padding: 0.375rem 0.75rem; border-radius: 6px; font-size: 0.75rem; font-weight: 500; cursor: pointer; border: 1px solid #e2e8f0; background: #fff; color: #dc2626; transition: background 0.15s, border-color 0.15s; white-space: nowrap; }
+.terminateBtn:hover { background: #fef2f2; border-color: #fca5a5; }
+.terminateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .actions { display: flex; gap: 0.75rem; padding: 0 1.5rem 1.5rem; }
 .editBtn, .logoutBtn, .deleteBtn { flex: 1; padding: 0.625rem; border-radius: 8px; font-size: 0.8125rem; font-weight: 500; cursor: pointer; border: 1px solid #e2e8f0; background: #fff; color: #334151; transition: background 0.15s, border-color 0.15s; }
 .editBtn:hover { background: #f8fafc; border-color: #5b6af0; color: #5b6af0; }

@@ -1,7 +1,8 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/useAuth';
-import {updateUserMeApi, uploadAvatarApi, changePasswordApi, deleteUserMeApi} from '../../api/auth';
+import { updateUserMeApi, uploadAvatarApi, changePasswordApi, deleteUserMeApi, getSessionsApi, deleteSessionApi } from '../../api/auth';
 import { useNotifications } from '../../contexts/useNotifications';
+import type { SessionDevice } from '../../types/auth';
 import Avatar from '../../components/UI/Avatar';
 import modalStyles from '../../components/Dashboard/Modal.module.css';
 import styles from './ProfilePage.module.css';
@@ -24,6 +25,36 @@ export default function ProfilePage() {
     const [showDelete, setShowDelete] = useState(false);
     const [deletePassword, setDeletePassword] = useState('');
     const [deletingAccount, setDeletingAccount] = useState(false);
+
+    const [sessions, setSessions] = useState<SessionDevice[]>([]);
+    const [sessionsLoading, setSessionsLoading] = useState(true);
+    const [revokingId, setRevokingId] = useState<number | null>(null);
+
+    useEffect(() => {
+        getSessionsApi()
+            .then(setSessions)
+            .catch(() => addNotification('error', 'Ошибка при загрузке сессий'))
+            .finally(() => setSessionsLoading(false));
+    }, []);
+
+    const handleRevokeSession = async (sessionId: number) => {
+        setRevokingId(sessionId);
+        try {
+            await deleteSessionApi(sessionId);
+            setSessions(prev => prev.filter(s => s.id !== sessionId));
+            addNotification('success', 'Сессия завершена');
+        } catch {
+            addNotification('error', 'Ошибка при завершении сессии');
+        } finally {
+            setRevokingId(null);
+        }
+    };
+
+    const fmtDateTime = (iso: string) =>
+        new Date(iso).toLocaleDateString('ru-RU', {
+            day: 'numeric', month: 'long', year: 'numeric',
+            hour: '2-digit', minute: '2-digit',
+        });
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -145,6 +176,49 @@ export default function ProfilePage() {
                         Удалить аккаунт
                     </button>
                 </div>
+            </div>
+
+            <div className={styles.sessionsCard}>
+                <div className={styles.sessionsHeader}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                    <h2>Активные сессии</h2>
+                </div>
+
+                {sessionsLoading ? (
+                    <div className={styles.sessionsLoading}>Загрузка сессий...</div>
+                ) : sessions.length === 0 ? (
+                    <div className={styles.sessionsEmpty}>Нет активных сессий</div>
+                ) : (
+                    <div className={styles.sessionsList}>
+                        {sessions.map(s => (
+                            <div key={s.id} className={styles.deviceItem}>
+                                <div className={styles.deviceIcon}>
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>
+                                </div>
+                                <div className={styles.deviceInfo}>
+                                    <span className={styles.deviceName}>{s.device_name}</span>
+                                    <span className={styles.deviceMeta}>
+                                        {s.ip_address && <span>{s.ip_address} · </span>}
+                                        {fmtDateTime(s.last_active)}
+                                    </span>
+                                </div>
+                                <div className={styles.deviceActions}>
+                                    {s.is_current ? (
+                                        <span className={styles.currentBadge}>Текущая сессия</span>
+                                    ) : (
+                                        <button
+                                            className={styles.terminateBtn}
+                                            onClick={() => handleRevokeSession(s.id)}
+                                            disabled={revokingId === s.id}
+                                        >
+                                            {revokingId === s.id ? 'Завершение...' : 'Завершить'}
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {showEdit && (

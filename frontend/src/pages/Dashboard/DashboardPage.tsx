@@ -44,7 +44,7 @@ export default function DashboardPage() {
             <div className={styles.header}>
                 <div>
                     <h1 className={styles.title}>Мои Проекты</h1>
-                    <p className={styles.subtitle}>Управление активными задачами команды</p>
+                    <p className={styles.subtitle}>Управление вашими проектами</p>
                 </div>
                 <button className={styles.newBtn} onClick={() => setShowCreate(true)}>
                     <svg className={styles.icon} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"/></svg>

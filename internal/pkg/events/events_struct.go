@@ -47,3 +47,19 @@ func (e TaskEvent) ToEvent() Event {
 		Data:      e,
 	}
 }
+
+// UserDeletedEvent данные события удаления пользователя
+type UserDeletedEvent struct {
+	UserID uuid.UUID
+	Email  string
+	Name   string
+}
+
+// ToEvent конвертирует UserDeletedEvent в events.Event
+func (e UserDeletedEvent) ToEvent() Event {
+	return Event{
+		Type:      UserDeleted,
+		Timestamp: time.Now(),
+		Data:      e,
+	}
+}

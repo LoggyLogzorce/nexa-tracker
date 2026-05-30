@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     container_name: tracker-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: nexa_task_tracker
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,22 +21,8 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     container_name: tracker-backend
-    environment:
-      ENV: production
-      SERVER_HOST: 0.0.0.0
-      SERVER_PORT: 8080
-      DB_HOST: tracker-postgres
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: nexa_task_tracker
-      DB_SSLMODE: disable
-      JWT_SECRET: change-me-in-production
-      JWT_ACCESS_EXPIRY: 15m
-      JWT_REFRESH_EXPIRY: 168h
-      COOKIE_DOMAIN: .kivoapps.ru
-      COOKIE_SAMESITE: 1
-      CORS_ORIGINS: "https://tasks.kivoapps.ru:8443"
+    env_file:
+      - ../.env
     volumes:
       - attachments:/var/data/nexa-tracker
     healthcheck:
@@ -58,7 +44,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.frontend
       args:
-        VITE_API_URL: https://tasks.kivoapps.ru:8443/api
+        VITE_API_URL: ${VITE_API_URL}
     container_name: tracker-frontend
     depends_on:
       app:

@@ -6,8 +6,10 @@ import (
 	"log"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/internal/pkg/cookie"
+	"nexa-task-tracker/internal/pkg/hash"
 	"nexa-task-tracker/internal/pkg/validation"
-	"os"
+	"strconv"
 	"time"
 
 	"nexa-task-tracker/internal/pkg/events"
@@ -15,47 +17,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
-
-// setCookie устанавливает refresh token cookie с правильными security настройками
-func setCookie(c *gin.Context, name, value, domain string, sameSite http.SameSite, maxAge int) {
-	// Определить Secure flag в зависимости от окружения
-	secure := true
-	if os.Getenv("ENV") == "development" {
-		secure = false
-		domain = ""
-	}
-
-	c.SetSameSite(sameSite)
-	c.SetCookie(
-		name,
-		value,
-		maxAge,
-		"/",
-		domain,
-		secure,
-		true,
-	)
-}
-
-// deleteCookie удаляет cookie
-func deleteCookie(c *gin.Context, name, domain string, sameSite http.SameSite) {
-	secure := true
-	if os.Getenv("ENV") == "development" {
-		secure = false
-		domain = ""
-	}
-
-	c.SetSameSite(sameSite)
-	c.SetCookie(
-		name,
-		"",
-		-1, // maxAge = -1 удаляет cookie
-		"/",
-		domain,
-		secure,
-		true,
-	)
-}
 
 type Handler struct {
 	service       Service
@@ -160,7 +121,7 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 
 	// Set refresh token in HttpOnly cookie
-	setCookie(c, "refresh_token", refreshToken, h.domain, h.sameSite, int(h.refreshExpiry.Seconds())) // 7 days
+	cookie.Set(c, "refresh_token", refreshToken, h.domain, h.sameSite, int(h.refreshExpiry.Seconds())) // 7 days
 
 	// Success - don't return refresh_token in JSON
 	response.Success(c, http.StatusOK, gin.H{
@@ -183,7 +144,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 
 	if err != nil {
 		// При любой ошибке - удалить cookie
-		deleteCookie(c, "refresh_token", h.domain, h.sameSite)
+		cookie.Delete(c, "refresh_token", h.domain, h.sameSite)
 
 		if errors.Is(err, ErrInvalidToken) {
 			response.Error(c, http.StatusUnauthorized, "Invalid refresh token")
@@ -194,7 +155,7 @@ func (h *Handler) Refresh(c *gin.Context) {
 	}
 
 	// Set new refresh token in cookie
-	setCookie(c, "refresh_token", newRefreshToken, h.domain, h.sameSite, int(h.refreshExpiry.Seconds()))
+	cookie.Set(c, "refresh_token", newRefreshToken, h.domain, h.sameSite, int(h.refreshExpiry.Seconds()))
 
 	// Success - don't return refresh_token in JSON
 	response.Success(c, http.StatusOK, gin.H{
@@ -209,7 +170,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	refreshToken, err := c.Cookie("refresh_token")
 	if err != nil {
 		// Cookie нет - уже разлогинен, но это OK
-		deleteCookie(c, "refresh_token", h.domain, h.sameSite) // на всякий случай
+		cookie.Delete(c, "refresh_token", h.domain, h.sameSite) // на всякий случай
 		response.Success(c, http.StatusOK, gin.H{
 			"message": "Logged out successfully",
 		})
@@ -219,13 +180,13 @@ func (h *Handler) Logout(c *gin.Context) {
 	// Отозвать refresh token в БД
 	if err := h.service.Logout(c.Request.Context(), refreshToken); err != nil {
 		// Даже если ошибка в БД - удалить cookie
-		deleteCookie(c, "refresh_token", h.domain, h.sameSite)
+		cookie.Delete(c, "refresh_token", h.domain, h.sameSite)
 		response.Error(c, http.StatusInternalServerError, "Logout failed")
 		return
 	}
 
 	// Удалить cookie
-	deleteCookie(c, "refresh_token", h.domain, h.sameSite)
+	cookie.Delete(c, "refresh_token", h.domain, h.sameSite)
 
 	response.Success(c, http.StatusOK, gin.H{
 		"message": "Logged out successfully",
@@ -258,6 +219,49 @@ func (h *Handler) ChangePassword(c *gin.Context) {
 		return
 	}
 	response.Success(c, http.StatusOK, "Change password successfully")
+}
+
+func (h *Handler) GetSessions(c *gin.Context) {
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	var currentTokenHash string
+	refreshToken, err := c.Cookie("refresh_token")
+	if err == nil && refreshToken != "" {
+		currentTokenHash = hash.TokenHash(refreshToken)
+	}
+
+	sessions, err := h.service.GetSessions(c.Request.Context(), userID.(uuid.UUID), currentTokenHash)
+	if err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to get sessions")
+		return
+	}
+
+	response.Success(c, http.StatusOK, sessions)
+}
+
+func (h *Handler) RevokeSession(c *gin.Context) {
+	userID, exists := c.Get(ctxkeys.UserIDKey)
+	if !exists {
+		response.Error(c, http.StatusUnauthorized, "user not authenticated")
+		return
+	}
+
+	sessionID, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(c, http.StatusBadRequest, "invalid session id")
+		return
+	}
+
+	if err := h.service.RevokeSession(c.Request.Context(), userID.(uuid.UUID), uint(sessionID)); err != nil {
+		response.Error(c, http.StatusInternalServerError, "failed to revoke session")
+		return
+	}
+
+	response.Success(c, http.StatusOK, gin.H{"message": "session revoked successfully"})
 }
 
 func (h *Handler) Setup2FA(c *gin.Context) {

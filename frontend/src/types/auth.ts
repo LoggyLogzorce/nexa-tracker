@@ -30,3 +30,11 @@ export interface ApiResponse<T = unknown> {
     data?: T;
     error?: string;
 }
+
+export interface SessionDevice {
+    id: number;
+    device_name: string;
+    ip_address: string | null;
+    last_active: string;
+    is_current: boolean;
+}
