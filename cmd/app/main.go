@@ -101,6 +101,7 @@ func main() {
 	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
 
 	googleOAuthService := oauth.NewGoogleOAuthService(config.NewGoogleConfig(cfg.Google), authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	yandexOAuthService := oauth.NewYandexOAuthService(config.NewYandexConfig(cfg.Yandex), authRepo, userRepo, cfg.JWT.Secret, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
 	// Initialize handlers
 	userHandler := user.NewHandler(userService, cfg.Upload.Path)
@@ -113,7 +114,7 @@ func main() {
 	commentHandler := comment.NewHandler(commentService)
 	attachmentHandler := attachment.NewHandler(attachmentService)
 
-	oAuthHandler := oauth.NewOAuthHandler(googleOAuthService, cfg.Frontend.Url, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
+	oAuthHandler := oauth.NewOAuthHandler(googleOAuthService, yandexOAuthService, cfg.Frontend.Url, cfg.Cookie.Domain, cfg.Cookie.SameSite, cfg.JWT.AccessExpiry, cfg.JWT.RefreshExpiry)
 
 	h := api.Handlers{
 		AuthHdl:        authHandler,

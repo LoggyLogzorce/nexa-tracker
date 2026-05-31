@@ -5,7 +5,7 @@ import { setCurrentAccessToken } from '../../api/client';
 import { useAuth } from '../../contexts/useAuth';
 import { useNotifications } from '../../contexts/useNotifications';
 
-export default function GoogleCallbackPage() {
+export default function OAuthCallbackPage() {
     const navigate = useNavigate();
     const { loadUser } = useAuth();
     const { addNotification } = useNotifications();
@@ -18,7 +18,7 @@ export default function GoogleCallbackPage() {
                 await loadUser();
                 navigate('/dashboard', { replace: true });
             } catch {
-                addNotification('error', 'Ошибка при входе через Google');
+                addNotification('error', 'Ошибка при входе');
                 navigate('/login', { replace: true });
             }
         };
@@ -35,7 +35,7 @@ export default function GoogleCallbackPage() {
             color: '#6b7280',
             fontSize: '1rem',
         }}>
-            Вход через Google...
+            Вход через внешний сервис...
         </div>
     );
 }

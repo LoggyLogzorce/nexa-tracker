@@ -1,9 +1,11 @@
 .form { display: flex; flex-direction: column; width: 100%; }
 .formInner { display: flex; flex-direction: column; width: 100%; }
 .title { margin: 0 0 1.5rem; font-size: 1.5rem; font-weight: 600; color: #111827; text-align: center; }
-.googleBtn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; width: 100%; padding: 0.625rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #374151; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
-.googleBtn:hover { background: #f9fafb; border-color: #9ca3af; }
-.googleBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+.socialRow { display: flex; gap: 0.75rem; }
+.socialRow button { flex: 1; }
+.googleBtn, .yandexBtn { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 0.625rem 1rem; border: 1px solid #d1d5db; border-radius: 8px; background: #fff; color: #374151; font-size: 0.875rem; font-weight: 500; cursor: pointer; transition: background 0.15s, border-color 0.15s; }
+.googleBtn:hover, .yandexBtn:hover { background: #f9fafb; border-color: #9ca3af; }
+.googleBtn:disabled, .yandexBtn:disabled { opacity: 0.5; cursor: not-allowed; }
 .divider { display: flex; align-items: center; gap: 0.75rem; margin: 1rem 0; color: #9ca3af; font-size: 0.8125rem; }
 .divider::before, .divider::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
 .links { display: flex; justify-content: center; margin-top: 1rem; font-size: 0.875rem; }

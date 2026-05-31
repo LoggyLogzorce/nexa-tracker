@@ -10,6 +10,12 @@ import (
 	"time"
 )
 
+type YandexOAuthConfig struct {
+	ClientID     string
+	ClientSecret string
+	RedirectURL  string
+}
+
 type GoogleOAuthConfig struct {
 	ClientID     string
 	ClientSecret string
@@ -33,6 +39,7 @@ type Config struct {
 	Upload   UploadConfig
 	Modules  CustomModule
 	Google   GoogleOAuthConfig
+	Yandex   YandexOAuthConfig
 	Frontend Frontend
 }
 
@@ -134,6 +141,11 @@ func Load() (*Config, error) {
 			ClientID:     getEnv("GOOGLE_CLIENT_ID", ""),
 			ClientSecret: getEnv("GOOGLE_CLIENT_SECRET", ""),
 			RedirectURL:  getEnv("GOOGLE_REDIRECT_URL", ""),
+		},
+		Yandex: YandexOAuthConfig{
+			ClientID:     getEnv("YANDEX_CLIENT_ID", ""),
+			ClientSecret: getEnv("YANDEX_CLIENT_SECRET", ""),
+			RedirectURL:  getEnv("YANDEX_REDIRECT_URL", ""),
 		},
 		Frontend: Frontend{
 			Url: getEnv("FRONTEND_URL", "http://localhost:5173"),

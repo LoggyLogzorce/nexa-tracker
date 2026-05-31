@@ -6,7 +6,7 @@ import AuthLayout from './layouts/AuthLayout';
 import DashboardLayout from './layouts/DashboardLayout';
 import LoginPage from './pages/Auth/LoginPage';
 import RegisterPage from './pages/Auth/RegisterPage';
-import GoogleCallbackPage from './pages/Auth/GoogleCallbackPage';
+import OAuthCallbackPage from './pages/Auth/OAuthCallbackPage';
 import DashboardPage from './pages/Dashboard/DashboardPage';
 import ProjectsPage from './pages/Projects/ProjectsPage';
 import ProjectDetailPage from './pages/Projects/ProjectDetailPage';
@@ -41,7 +41,8 @@ function App() {
                     <Route path="/register" element={
                         <AuthRedirect><AuthLayout><RegisterPage /></AuthLayout></AuthRedirect>
                     } />
-                    <Route path="auth/google/callback" element={<GoogleCallbackPage />} />
+                    <Route path="auth/google/callback" element={<OAuthCallbackPage />} />
+                    <Route path="auth/yandex/callback" element={<OAuthCallbackPage />} />
                     <Route path="/" element={
                         <ProtectedRoute><DashboardLayout /></ProtectedRoute>
                     }>

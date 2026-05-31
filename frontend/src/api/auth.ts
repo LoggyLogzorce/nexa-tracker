@@ -73,3 +73,8 @@ export const getGoogleAuthUrlApi = async (): Promise<string> => {
     const response = await client.get<ApiResponse<{ url: string }>>('/auth/google/login');
     return extractData(response.data).url;
 };
+
+export const getYandexAuthUrlApi = async (): Promise<string> => {
+    const response = await client.get<ApiResponse<{ url: string }>>('/auth/yandex/login');
+    return extractData(response.data).url;
+};

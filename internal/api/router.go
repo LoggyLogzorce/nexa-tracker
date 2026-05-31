@@ -88,8 +88,11 @@ func (r *Router) Setup() *gin.Engine {
 			authGroup.POST("/refresh", r.handlers.AuthHdl.Refresh)
 			authGroup.POST("/logout", r.handlers.AuthHdl.Logout)
 
+			// OAuth
 			authGroup.GET("/google/login", r.handlers.OAuthHdl.GoogleLogin)
 			authGroup.GET("/google/callback", r.handlers.OAuthHdl.GoogleCallback)
+			authGroup.GET("/yandex/login", r.handlers.OAuthHdl.YandexLogin)
+			authGroup.GET("/yandex/callback", r.handlers.OAuthHdl.YandexCallback)
 
 			// 2FA routes | не сделано
 			twoFA := authGroup.Group("/2fa")
