@@ -14,9 +14,11 @@ type Repository interface {
 	GetByProjectID(ctx context.Context, pID uuid.UUID, archived bool) ([]models.Task, error)
 	GetByAssigneeID(ctx context.Context, uID uuid.UUID, archived bool) ([]models.Task, error)
 	GetByReporterID(ctx context.Context, uID uuid.UUID, archived bool) ([]models.Task, error)
+	GetByProjectIDAndUserID(ctx context.Context, pID uuid.UUID, userID uuid.UUID) ([]models.Task, error)
 	Search(ctx context.Context, q string, projectIDs []uuid.UUID, limit int) ([]models.Task, error)
 	Update(ctx context.Context, task *models.Task, history *models.UpdateHistory) error
 	Delete(ctx context.Context, id uint) error
+	DeleteParticipantInTask(ctx context.Context, tasks []models.Task, histories []models.UpdateHistory) error
 
 	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]models.UpdateHistory, error)
 }
@@ -64,6 +66,13 @@ func (r *repository) GetByReporterID(ctx context.Context, uID uuid.UUID, archive
 	return tasks, err
 }
 
+func (r *repository) GetByProjectIDAndUserID(ctx context.Context, pID uuid.UUID, userID uuid.UUID) ([]models.Task, error) {
+	var tasks []models.Task
+	err := r.db.WithContext(ctx).Where("project_id = ? AND (assignee_id = ? OR reporter_id = ?)",
+		pID, userID, userID).Find(&tasks).Error
+	return tasks, err
+}
+
 func (r *repository) Search(ctx context.Context, q string, projectIDs []uuid.UUID, limit int) ([]models.Task, error) {
 	var tasks []models.Task
 	err := r.db.WithContext(ctx).
@@ -92,4 +101,13 @@ func (r *repository) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]mod
 	var history []models.UpdateHistory
 	err := r.db.WithContext(ctx).Where("task_id = ?", taskID).Find(&history).Error
 	return history, err
+}
+
+func (r *repository) DeleteParticipantInTask(ctx context.Context, tasks []models.Task, histories []models.UpdateHistory) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&tasks).Error; err != nil {
+			return err
+		}
+		return tx.Create(histories).Error
+	})
 }

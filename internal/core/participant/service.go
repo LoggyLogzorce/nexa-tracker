@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/models"
+	"nexa-task-tracker/internal/pkg/events"
 	"time"
 )
 
@@ -22,12 +23,14 @@ type Service interface {
 type service struct {
 	repo     Repository
 	userRepo user.Repository
+	eventBus *events.EventBus
 }
 
-func NewService(repo Repository, userRepo user.Repository) Service {
+func NewService(repo Repository, userRepo user.Repository, eventBus *events.EventBus) Service {
 	return &service{
 		repo:     repo,
 		userRepo: userRepo,
+		eventBus: eventBus,
 	}
 }
 
@@ -125,7 +128,20 @@ func (s *service) RemoveParticipant(ctx context.Context, participant *models.Pro
 		return err
 	}
 
-	return s.repo.Delete(ctxT, participant)
+	err = s.repo.Delete(ctxT, participant)
+	if err != nil {
+		return err
+	}
+
+	pEvent := events.ParticipantEvent{
+		Type:      events.ParticipantDelete,
+		ProjectID: participant.ProjectID,
+		UserID:    participant.UserID,
+		Role:      participant.Role,
+	}
+
+	s.eventBus.Publish(pEvent.ToEvent())
+	return nil
 }
 
 func (s *service) CheckAccess(ctx context.Context, projectID uuid.UUID, userID string, requiredRole string) (bool, error) {

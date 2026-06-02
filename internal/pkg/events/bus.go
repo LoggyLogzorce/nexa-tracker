@@ -10,11 +10,12 @@ import (
 type EventType string
 
 const (
-	UserDeleted    EventType = "user.deleted"
-	ProjectDeleted EventType = "project.deleted"
-	ProjectCreated EventType = "project.created"
-	TaskCreate     EventType = "task.created"
-	TaskDelete     EventType = "task.delete"
+	UserDeleted       EventType = "user.deleted"
+	ProjectDeleted    EventType = "project.deleted"
+	ProjectCreated    EventType = "project.created"
+	TaskCreate        EventType = "task.created"
+	TaskDelete        EventType = "task.delete"
+	ParticipantDelete EventType = "participant.delete"
 )
 
 // Event представляет событие в системе

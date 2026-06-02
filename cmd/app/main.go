@@ -95,7 +95,7 @@ func main() {
 	projectService := project.NewService(projectRepo, eventBus, userRepo, statusRepo, priorityRepo, participantRepo)
 	statusService := status.NewService(statusRepo)
 	priorityService := priority.NewService(priorityRepo)
-	participantService := participant.NewService(participantRepo, userRepo)
+	participantService := participant.NewService(participantRepo, userRepo, eventBus)
 	taskService := task.NewService(taskRepo, userRepo, statusRepo, priorityRepo, participantRepo, projectRepo, eventBus)
 	commentService := comment.NewService(commentRepo, userRepo)
 	attachmentService := attachment.NewService(attachmentRepo, taskRepo, userRepo, cfg.Upload.Path)
@@ -110,7 +110,7 @@ func main() {
 	statusHandler := status.NewHandler(statusService, eventBus)
 	priorityHandler := priority.NewHandler(priorityService, eventBus)
 	participantHandler := participant.NewHandler(participantService)
-	taskHandler := task.NewHandler(taskService)
+	taskHandler := task.NewHandler(taskService, eventBus)
 	commentHandler := comment.NewHandler(commentService)
 	attachmentHandler := attachment.NewHandler(attachmentService)
 

@@ -63,3 +63,20 @@ func (e UserDeletedEvent) ToEvent() Event {
 		Data:      e,
 	}
 }
+
+// ParticipantEvent данные события участника
+type ParticipantEvent struct {
+	Type      EventType
+	ProjectID uuid.UUID
+	UserID    uuid.UUID
+	Role      string
+}
+
+// ToEvent конвертирует ParticipantEvent в events.Event
+func (e ParticipantEvent) ToEvent() Event {
+	return Event{
+		Type:      e.Type,
+		Timestamp: time.Now(),
+		Data:      e,
+	}
+}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/models"
+	"nexa-task-tracker/internal/pkg/events"
 	"nexa-task-tracker/internal/pkg/nullable"
 	"nexa-task-tracker/internal/pkg/response"
 	"nexa-task-tracker/internal/pkg/validation"
@@ -19,7 +20,8 @@ type Handler struct {
 	service Service
 }
 
-func NewHandler(service Service) *Handler {
+func NewHandler(service Service, eventBus *events.EventBus) *Handler {
+	eventBus.Subscribe(events.ParticipantDelete, service.HandleParticipantDelete)
 	return &Handler{service: service}
 }
 

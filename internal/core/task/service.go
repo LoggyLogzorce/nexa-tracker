@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"log"
 	"nexa-task-tracker/internal/core/participant"
 	"nexa-task-tracker/internal/core/priority"
 	"nexa-task-tracker/internal/core/project"
@@ -27,6 +29,8 @@ type Service interface {
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 
 	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]HistoryResponse, error)
+
+	HandleParticipantDelete(event events.Event) error
 }
 
 type service struct {
@@ -946,7 +950,7 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 	now := time.Now()
 	history := &models.UpdateHistory{
 		CreatedAt: now,
-		UserID:    userID,
+		UserID:    &userID,
 		TaskID:    taskNew.ID,
 		Old:       datatypes.JSON(oldJSON),
 		New:       datatypes.JSON(newJSON),
@@ -993,7 +997,7 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 		return nil, err
 	}
 
-	userIDsMap := make(map[uuid.UUID]struct{})
+	userIDsMap := make(map[*uuid.UUID]struct{})
 
 	for _, h := range history {
 		userIDsMap[h.UserID] = struct{}{}
@@ -1002,7 +1006,7 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	// Загружаем пользователей
 	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
 	for id := range userIDsMap {
-		userIDs = append(userIDs, id)
+		userIDs = append(userIDs, *id)
 	}
 	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
 	if err != nil {
@@ -1023,7 +1027,7 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 			New:       h.New,
 			Changes:   h.Changes,
 		}
-		if u, ok := usersMap[h.UserID]; ok {
+		if u, ok := usersMap[*h.UserID]; ok {
 			response[i].User = TaskUserResponse{
 				ID:        u.ID,
 				Name:      u.Name,
@@ -1036,4 +1040,70 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	}
 
 	return response, nil
+}
+
+func (s *service) HandleParticipantDelete(event events.Event) error {
+	data, ok := event.Data.(events.ParticipantEvent)
+	if !ok {
+		return fmt.Errorf("invalid event data type")
+	}
+
+	ctxT, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	tasks, err := s.repo.GetByProjectIDAndUserID(ctxT, data.ProjectID, data.UserID)
+	if err != nil {
+		return err
+	}
+
+	if len(tasks) == 0 {
+		return nil
+	}
+
+	var histories []models.UpdateHistory
+	now := time.Now()
+	for i, t := range tasks {
+		var changes []FieldChange
+		oldJSON, err := json.Marshal(t)
+		if err != nil {
+			return err
+		}
+
+		if t.AssigneeID != nil && *t.AssigneeID == data.UserID {
+			changes = append(changes, FieldChange{"assignee_id", t.AssigneeID, nil})
+			tasks[i].AssigneeID = nil
+		}
+		if t.ReporterID != nil && *t.ReporterID == data.UserID {
+			changes = append(changes, FieldChange{"reporter_id", t.ReporterID, nil})
+			tasks[i].ReporterID = nil
+		}
+
+		if len(changes) == 0 {
+			continue
+		}
+
+		changesJSON, err := json.Marshal(changes)
+		if err != nil {
+			return err
+		}
+		newJSON, err := json.Marshal(t)
+		if err != nil {
+			return err
+		}
+
+		histories = append(histories, models.UpdateHistory{
+			CreatedAt: now,
+			UserID:    nil,
+			TaskID:    t.ID,
+			Old:       oldJSON,
+			New:       newJSON,
+			Changes:   changesJSON,
+		})
+	}
+
+	if err := s.repo.DeleteParticipantInTask(ctxT, tasks, histories); err != nil {
+		log.Printf("err delete participant in tasks %s", err)
+		return err
+	}
+	return nil
 }
