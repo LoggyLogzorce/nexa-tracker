@@ -180,9 +180,9 @@ func (s *service) HandleProjectCreated(event events.Event) error {
 	}
 
 	defaultPriorities := []models.Priority{
-		{ProjectID: data.ProjectID, Title: "Low", Color: "#22c55e"},    // зелёный
-		{ProjectID: data.ProjectID, Title: "Medium", Color: "#f59e0b"}, // жёлтый/оранжевый
-		{ProjectID: data.ProjectID, Title: "High", Color: "#ef4444"},   // красный
+		{ProjectID: data.ProjectID, Title: "Низкий", Color: "#22c55e"},  // зелёный
+		{ProjectID: data.ProjectID, Title: "Средний", Color: "#f59e0b"}, // жёлтый/оранжевый
+		{ProjectID: data.ProjectID, Title: "Высокий", Color: "#ef4444"}, // красный
 	}
 
 	ctxT, cancel := context.WithTimeout(context.Background(), 5*time.Second)

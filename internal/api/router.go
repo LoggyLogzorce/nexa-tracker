@@ -14,6 +14,7 @@ import (
 	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/middleware"
+	"nexa-task-tracker/internal/version"
 )
 
 type Handlers struct {
@@ -79,6 +80,14 @@ func (r *Router) Setup() *gin.Engine {
 	v1 := r.engine.Group("/api/v1")
 	v1.Use(middleware.BodySizeLimit(5 << 20))
 	{
+		// Version & changelog
+		v1.GET("/version", func(c *gin.Context) {
+			c.JSON(200, gin.H{"version": version.Version})
+		})
+		v1.GET("/changelog", func(c *gin.Context) {
+			c.Data(200, "text/markdown; charset=utf-8", []byte(version.ChangelogMD))
+		})
+
 		// Auth routes (public) with rate limiting
 		authGroup := v1.Group("/auth")
 		authGroup.Use(middleware.RateLimitMiddleware(authRateLimiter))

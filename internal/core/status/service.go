@@ -341,9 +341,9 @@ func (s *service) HandleProjectCreated(event events.Event) error {
 	}
 
 	defaultStatuses := []models.Status{
-		{ProjectID: data.ProjectID, Name: "To Do", Color: "#808080", OrderIndex: 0},
-		{ProjectID: data.ProjectID, Name: "In Progress", Color: "#3b82f6", OrderIndex: 1},
-		{ProjectID: data.ProjectID, Name: "Done", Color: "#22c55e", OrderIndex: 2},
+		{ProjectID: data.ProjectID, Name: "В очереди", Color: "#808080", OrderIndex: 0},
+		{ProjectID: data.ProjectID, Name: "В работе", Color: "#3b82f6", OrderIndex: 1},
+		{ProjectID: data.ProjectID, Name: "Готово", Color: "#22c55e", OrderIndex: 2},
 	}
 
 	ctxT, cancel := context.WithTimeout(context.Background(), 5*time.Second)

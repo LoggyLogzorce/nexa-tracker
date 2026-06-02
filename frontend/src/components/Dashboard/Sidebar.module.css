@@ -6,6 +6,9 @@
 .navItem:hover { background: rgba(14, 165, 233, 0.1); color: #0284c7; }
 .navItem.active { background: rgba(14, 165, 233, 0.1); color: #0284c7; border-right-color: #0284c7; }
 .navIcon { width: 20px; height: 20px; margin-right: 12px; flex-shrink: 0; }
+.iconWrap { position: relative; display: flex; align-items: center; }
+.badge { position: absolute; top: -4px; right: 4px; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 2px solid #fff; }
+.sidebar.collapsed .badge { right: -2px; }
 .bottom { padding: 1rem; border-top: 1px solid #f1f5f9; }
 .logout { color: #ef4444; background: none; border: none; width: 100%; text-align: left; cursor: pointer; border-right: none; }
 .logout:hover { background: #fef2f2; }
@@ -20,6 +23,8 @@
 .sidebar.collapsed .navItem { justify-content: center; padding: 0; width: 40px; height: 40px; margin: 4px auto; border-right: none; }
 .sidebar.collapsed .navItem .navIcon { margin-right: 0; }
 .sidebar.collapsed .navItem span { display: none; }
+.sidebar.collapsed .navItem .iconWrap { display: flex; }
+.sidebar.collapsed .navItem .iconWrap span { display: none; }
 .sidebar.collapsed .bottom { align-items: center; padding: 0.5rem; }
 .sidebar.collapsed .bottom .navItem { justify-content: center; padding: 0; width: 40px; height: 40px; margin: 4px auto; }
 .sidebar.collapsed .bottom .navItem span { display: none; }
