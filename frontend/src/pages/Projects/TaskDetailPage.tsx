@@ -6,6 +6,7 @@ import { getProjectById, getTaskById, getTaskAttachments, deleteTaskApi, uploadT
 import { useNotifications } from '../../contexts/useNotifications';
 import TaskComments from '../../components/Projects/TaskComments';
 import EditTaskModal from '../../components/Projects/EditTaskModal';
+import TaskHistoryModal from '../../components/Projects/TaskHistoryModal';
 import Avatar from '../../components/UI/Avatar';
 import modalStyles from '../../components/Dashboard/Modal.module.css';
 import styles from './TaskDetailPage.module.css';
@@ -45,6 +46,7 @@ export default function TaskDetailPage() {
     const [uploading, setUploading] = useState(false);
     const [deleteAttach, setDeleteAttach] = useState<Attachment | null>(null);
     const [showEditTask, setShowEditTask] = useState(false);
+    const [showHistory, setShowHistory] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showDeleteTask, setShowDeleteTask] = useState(false);
     const [showEditDesc, setShowEditDesc] = useState(false);
@@ -250,6 +252,9 @@ export default function TaskDetailPage() {
                                     )}
                                 </svg>
                             </button>
+                            <button className={styles.editTaskBtn} onClick={() => setShowHistory(true)} title="История изменений">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            </button>
                             <button className={styles.editTaskBtn} onClick={() => setShowEditTask(true)} title="Редактировать задачу">
                                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                             </button>
@@ -367,6 +372,10 @@ export default function TaskDetailPage() {
                         </form>
                     </div>
                 </div>
+            )}
+
+            {showHistory && (
+                <TaskHistoryModal projectId={project.id} taskId={task.id} archived={task.is_archive} onClose={() => setShowHistory(false)} />
             )}
 
             {showEditTask && project && (

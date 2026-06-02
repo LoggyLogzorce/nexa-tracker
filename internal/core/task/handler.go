@@ -223,7 +223,13 @@ func (h *Handler) Update(c *gin.Context) {
 		return
 	}
 
-	archived := c.Query("archived")
+	arcQuery := c.Query("archived")
+	var archived bool
+	if arcQuery == "true" {
+		archived = true
+	} else {
+		archived = false
+	}
 
 	task, err := h.service.Update(c.Request.Context(), uint(taskID), &req, archived, userID)
 	if err != nil {

@@ -201,7 +201,6 @@ func (r *Router) Setup() *gin.Engine {
 					projectOwner.DELETE("/statuses/:status_id", r.handlers.StatusHdl.Delete)
 					projectOwner.DELETE("/priorities/:priority_id", r.handlers.PriorityHdl.Delete)
 
-					// FIX: явное указание метода и мидлвара
 					projectOwner.DELETE("/tasks/:task_id", middleware.CheckTaskProject(r.taskRepo), r.handlers.TaskHdl.Delete)
 				}
 			}

@@ -290,7 +290,13 @@ export interface TaskHistoryEntry {
     task_id: number;
     old: Record<string, unknown>;
     new: Record<string, unknown>;
-    changes: Array<{ field: string; old_value: string; new_value: string }>;
+    changes: Array<{
+        field: string;
+        old_value: unknown;
+        new_value: unknown;
+        old_name?: string;
+        new_name?: string;
+    }>;
 }
 
 export const getTaskHistoryApi = async (projectId: string, taskId: number, archived?: boolean): Promise<TaskHistoryEntry[]> => {

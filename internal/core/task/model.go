@@ -56,5 +56,5 @@ type HistoryResponse struct {
 	TaskID  uint             `gorm:"not null" json:"task_id"`
 	Old     datatypes.JSON   `gorm:"type:jsonb" json:"old"`
 	New     datatypes.JSON   `gorm:"type:jsonb" json:"new"`
-	Changes datatypes.JSON   `gorm:"type:jsonb" json:"changes"` // [{field, old_value, new_value}]
+	Changes []FieldChange    `json:"changes"`
 }

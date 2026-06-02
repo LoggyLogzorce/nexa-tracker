@@ -25,7 +25,7 @@ type Service interface {
 	GetByProjectID(ctx context.Context, projectID uuid.UUID, param Param) ([]TaskResponse, error)
 	GetByUserID(ctx context.Context, userID uuid.UUID, param Param) ([]TaskResponse, error)
 	Search(ctx context.Context, q string, userID uuid.UUID) ([]TaskResponse, error)
-	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error)
+	Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, archived bool, userID uuid.UUID) (*TaskResponse, error)
 	Delete(ctx context.Context, taskId uint, userID uuid.UUID) error
 
 	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]HistoryResponse, error)
@@ -59,6 +59,8 @@ type FieldChange struct {
 	Field    string `json:"field"`
 	OldValue any    `json:"old_value"`
 	NewValue any    `json:"new_value"`
+	OldName  string `json:"old_name,omitempty"`
+	NewName  string `json:"new_name,omitempty"`
 }
 
 func (s *service) Create(ctx context.Context, task *models.Task) (*TaskResponse, error) {
@@ -729,14 +731,9 @@ func (s *service) Search(ctx context.Context, q string, userID uuid.UUID) ([]Tas
 	return response, nil
 }
 
-func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, param string, userID uuid.UUID) (*TaskResponse, error) {
+func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskRequest, archived bool, userID uuid.UUID) (*TaskResponse, error) {
 	ctxT, cancel := context.WithTimeout(ctx, 7*time.Second)
 	defer cancel()
-
-	archived := false
-	if param == "true" {
-		archived = true
-	}
 
 	taskOld, err := s.repo.GetByID(ctxT, taskID, archived)
 	if err != nil {
@@ -747,6 +744,124 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 	}
 
 	taskNew := *taskOld
+	var changes []FieldChange
+
+	// title
+	if req.Title != nil && *req.Title != taskOld.Title {
+		changes = append(changes, FieldChange{Field: "title", OldValue: taskOld.Title, NewValue: *req.Title})
+		taskNew.Title = *req.Title
+	}
+
+	// description
+	if req.Description.Set && !equalStringPtr(req.Description.Value, taskOld.Description) {
+		changes = append(changes, FieldChange{Field: "description", OldValue: taskOld.Description, NewValue: req.Description.Value})
+		taskNew.Description = req.Description.Value
+	}
+
+	// status
+	if req.StatusID.Set && !equalUintPtr(req.StatusID.Value, taskOld.StatusID) {
+		if req.StatusID.Value != nil {
+			st, err := s.statusRepo.GetByID(ctxT, *req.StatusID.Value)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrStatusNotInProject
+				}
+				return nil, err
+			}
+			if st.ProjectID != taskNew.ProjectID {
+				return nil, ErrStatusNotInProject
+			}
+		}
+		fc := FieldChange{Field: "status", OldValue: taskOld.StatusID, NewValue: req.StatusID.Value}
+		if taskOld.StatusID != nil {
+			if oldSt, err := s.statusRepo.GetByID(ctxT, *taskOld.StatusID); err == nil {
+				fc.OldName = oldSt.Name
+			}
+		}
+		if req.StatusID.Value != nil {
+			if newSt, err := s.statusRepo.GetByID(ctxT, *req.StatusID.Value); err == nil {
+				fc.NewName = newSt.Name
+			}
+		}
+		changes = append(changes, fc)
+		taskNew.StatusID = req.StatusID.Value
+	}
+
+	// priority
+	if req.PriorityID.Set && !equalUintPtr(req.PriorityID.Value, taskOld.PriorityID) {
+		if req.PriorityID.Value != nil {
+			pr, err := s.priorityRepo.GetByID(ctxT, *req.PriorityID.Value)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrPriorityNotInProject
+				}
+				return nil, err
+			}
+			if pr.ProjectID != taskNew.ProjectID {
+				return nil, ErrPriorityNotInProject
+			}
+		}
+		fc := FieldChange{Field: "priority", OldValue: taskOld.PriorityID, NewValue: req.PriorityID.Value}
+		if taskOld.PriorityID != nil {
+			if oldPr, err := s.priorityRepo.GetByID(ctxT, *taskOld.PriorityID); err == nil {
+				fc.OldName = oldPr.Title
+			}
+		}
+		if req.PriorityID.Value != nil {
+			if newPr, err := s.priorityRepo.GetByID(ctxT, *req.PriorityID.Value); err == nil {
+				fc.NewName = newPr.Title
+			}
+		}
+		changes = append(changes, fc)
+		taskNew.PriorityID = req.PriorityID.Value
+	}
+
+	// assignee
+	if req.AssigneeID.Set && !equalUUIDPtr(req.AssigneeID.Value, taskOld.AssigneeID) {
+		if req.AssigneeID.Value != nil {
+			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, taskNew.ProjectID, *req.AssigneeID.Value)
+			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, err
+			}
+			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, ErrAssigneeNotInProject
+			}
+			if assignee.Role != "member" {
+				return nil, ErrInvalidAssigneeRole
+			}
+		}
+		fc := FieldChange{Field: "assignee", OldValue: taskOld.AssigneeID, NewValue: req.AssigneeID.Value}
+		if taskOld.AssigneeID != nil {
+			if oldUser, err := s.userRepo.GetByID(ctxT, *taskOld.AssigneeID); err == nil {
+				fc.OldName = oldUser.Name
+			}
+		}
+		if req.AssigneeID.Value != nil {
+			if newUser, err := s.userRepo.GetByID(ctxT, *req.AssigneeID.Value); err == nil {
+				fc.NewName = newUser.Name
+			}
+		}
+		changes = append(changes, fc)
+		taskNew.AssigneeID = req.AssigneeID.Value
+	}
+
+	// deadline
+	if req.Deadline.Set && !equalTimePtr(req.Deadline.Value, taskOld.Deadline) {
+		changes = append(changes, FieldChange{Field: "deadline", OldValue: taskOld.Deadline, NewValue: req.Deadline.Value})
+		taskNew.Deadline = req.Deadline.Value
+	}
+
+	// is_archive
+	if req.IsArchive.Set && req.IsArchive.Value != nil && *req.IsArchive.Value != taskOld.IsArchive {
+		changes = append(changes, FieldChange{Field: "is_archive", OldValue: taskOld.IsArchive, NewValue: *req.IsArchive.Value})
+		taskNew.IsArchive = *req.IsArchive.Value
+	}
+
+	if len(changes) == 0 {
+		return nil, ErrNoFieldsToUpdate
+	}
+
+	// сборка taskRes
 	taskRes := &TaskResponse{
 		ID:          taskNew.ID,
 		CreatedAt:   taskNew.CreatedAt,
@@ -759,26 +874,8 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		deadline := taskNew.Deadline.Format("2006-01-02")
 		taskRes.Deadline = &deadline
 	}
-	var changes []FieldChange
-	if req.Title != nil {
-		taskNew.Title = *req.Title
-		taskRes.Title = *req.Title
-		changes = append(changes, FieldChange{"title", taskOld.Title, taskNew.Title})
-	}
-	if req.Description.Set {
-		taskNew.Description = req.Description.Value
-		taskRes.Description = req.Description.Value
-		changes = append(changes, FieldChange{"description", taskOld.Description, taskNew.Description})
-	}
-	if req.StatusID.Set {
-		if req.StatusID.Value != nil {
-			st, err := s.statusRepo.GetByID(ctxT, *req.StatusID.Value)
-			if errors.Is(err, gorm.ErrRecordNotFound) || st.ProjectID != taskNew.ProjectID {
-				return nil, ErrStatusNotInProject
-			}
-			if err != nil {
-				return nil, err
-			}
+	if taskNew.StatusID != nil {
+		if st, err := s.statusRepo.GetByID(ctxT, *taskNew.StatusID); err == nil {
 			taskRes.Status = &TaskStatusResponse{
 				ID:         st.ID,
 				Name:       st.Name,
@@ -786,117 +883,15 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 				OrderIndex: st.OrderIndex,
 			}
 		}
-		taskNew.StatusID = req.StatusID.Value
-		changes = append(changes, FieldChange{"status", taskOld.StatusID, taskNew.StatusID})
-	} else {
-		if taskOld.StatusID != nil {
-			st, err := s.statusRepo.GetByID(ctxT, *taskOld.StatusID)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrStatusNotInProject
-			}
-			if err != nil {
-				return nil, err
-			}
-			taskRes.Status = &TaskStatusResponse{
-				ID:         st.ID,
-				Name:       st.Name,
-				Color:      st.Color,
-				OrderIndex: st.OrderIndex,
-			}
-			taskNew.StatusID = taskOld.StatusID
-			changes = append(changes, FieldChange{"status", taskOld.StatusID, taskNew.StatusID})
-		}
 	}
-	if req.PriorityID.Set {
-		if req.PriorityID.Value != nil {
-			pr, err := s.priorityRepo.GetByID(ctxT, *req.PriorityID.Value)
-			if errors.Is(err, gorm.ErrRecordNotFound) || pr.ProjectID != taskNew.ProjectID {
-				return nil, ErrPriorityNotInProject
-			}
-			if err != nil {
-				return nil, err
-			}
+	if taskNew.PriorityID != nil {
+		if pr, err := s.priorityRepo.GetByID(ctxT, *taskNew.PriorityID); err == nil {
 			taskRes.Priority = &TaskPriorityResponse{
 				ID:    pr.ID,
 				Title: pr.Title,
 				Color: pr.Color,
 			}
 		}
-		taskNew.PriorityID = req.PriorityID.Value
-		changes = append(changes, FieldChange{"priority", taskOld.PriorityID, taskNew.PriorityID})
-	} else {
-		if taskOld.PriorityID != nil {
-			pr, err := s.priorityRepo.GetByID(ctxT, *taskOld.PriorityID)
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrPriorityNotInProject
-			}
-			if err != nil {
-				return nil, err
-			}
-			taskRes.Priority = &TaskPriorityResponse{
-				ID:    pr.ID,
-				Title: pr.Title,
-				Color: pr.Color,
-			}
-			taskNew.PriorityID = taskOld.PriorityID
-			changes = append(changes, FieldChange{"priority", taskOld.PriorityID, taskNew.PriorityID})
-		}
-	}
-	if req.AssigneeID.Set {
-		if req.AssigneeID.Value != nil {
-			part := false
-			owner := false
-			assignee, err := s.participantRepo.GetByProjectAndUser(ctxT, taskNew.ProjectID, *req.AssigneeID.Value)
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, err
-			}
-
-			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-				part = false
-			} else if assignee.Role == "member" {
-				part = true
-			} else {
-				return nil, ErrInvalidAssigneeRole
-			}
-
-			project, err := s.projectRepo.GetByID(ctxT, taskNew.ProjectID)
-			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, err
-			}
-			if errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrProjectNotFound
-			}
-
-			if project.OwnerID == *req.AssigneeID.Value {
-				owner = true
-			}
-
-			if part == false && owner == false {
-				return nil, ErrAssigneeNotInProject
-			}
-		}
-		taskNew.AssigneeID = req.AssigneeID.Value
-		changes = append(changes, FieldChange{"assignee", taskOld.AssigneeID, taskNew.AssigneeID})
-	}
-	if req.Deadline.Set {
-		taskNew.Deadline = req.Deadline.Value
-		if req.Deadline.Value != nil {
-			deadline := req.Deadline.Value.Format("2006-01-02")
-			taskRes.Deadline = &deadline
-		}
-		changes = append(changes, FieldChange{"deadline", taskOld.Deadline, taskNew.Deadline})
-	}
-
-	if req.IsArchive.Set {
-		if req.IsArchive.Value != nil {
-			taskNew.IsArchive = *req.IsArchive.Value
-			taskRes.IsArchive = *req.IsArchive.Value
-			changes = append(changes, FieldChange{"is_archive", taskOld.IsArchive, taskNew.IsArchive})
-		}
-	}
-
-	if len(changes) == 0 {
-		return nil, ErrNoFieldsToUpdate
 	}
 
 	userIDs := make([]uuid.UUID, 0, 2)
@@ -906,7 +901,6 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 	if taskNew.ReporterID != nil {
 		userIDs = append(userIDs, *taskNew.ReporterID)
 	}
-
 	if len(userIDs) > 0 {
 		users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
 		if err != nil {
@@ -914,34 +908,23 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 		}
 		for _, u := range users {
 			if taskNew.AssigneeID != nil && *taskNew.AssigneeID == u.ID {
-				taskRes.Assignee = &TaskUserResponse{
-					ID:        u.ID,
-					Name:      u.Name,
-					Email:     u.Email,
-					AvatarUrl: u.AvatarUrl,
-				}
+				taskRes.Assignee = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email, AvatarUrl: u.AvatarUrl}
 			}
 			if taskNew.ReporterID != nil && *taskNew.ReporterID == u.ID {
-				taskRes.Reporter = &TaskUserResponse{
-					ID:        u.ID,
-					Name:      u.Name,
-					Email:     u.Email,
-					AvatarUrl: u.AvatarUrl,
-				}
+				taskRes.Reporter = &TaskUserResponse{ID: u.ID, Name: u.Name, Email: u.Email, AvatarUrl: u.AvatarUrl}
 			}
 		}
 	}
 
+	// history
 	oldJSON, err := json.Marshal(taskOld)
 	if err != nil {
 		return nil, err
 	}
-
 	newJSON, err := json.Marshal(taskNew)
 	if err != nil {
 		return nil, err
 	}
-
 	changesJSON, err := json.Marshal(changes)
 	if err != nil {
 		return nil, err
@@ -959,8 +942,7 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 	taskNew.UpdatedAt = now
 	taskRes.UpdatedAt = now
 
-	err = s.repo.Update(ctxT, &taskNew, history)
-	if err != nil {
+	if err := s.repo.Update(ctxT, &taskNew, history); err != nil {
 		return nil, err
 	}
 
@@ -1006,7 +988,9 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	// Загружаем пользователей
 	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
 	for id := range userIDsMap {
-		userIDs = append(userIDs, *id)
+		if id != nil {
+			userIDs = append(userIDs, *id)
+		}
 	}
 	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
 	if err != nil {
@@ -1019,23 +1003,29 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 
 	response := make([]HistoryResponse, len(history))
 	for i, h := range history {
+		var changes []FieldChange
+		if err := json.Unmarshal(h.Changes, &changes); err != nil {
+			return nil, err
+		}
 		response[i] = HistoryResponse{
 			ID:        h.ID,
 			CreatedAt: h.CreatedAt,
 			TaskID:    h.TaskID,
 			Old:       h.Old,
 			New:       h.New,
-			Changes:   h.Changes,
+			Changes:   changes,
 		}
-		if u, ok := usersMap[*h.UserID]; ok {
-			response[i].User = TaskUserResponse{
-				ID:        u.ID,
-				Name:      u.Name,
-				Email:     u.Email,
-				AvatarUrl: u.AvatarUrl,
+		if h.UserID != nil {
+			if u, ok := usersMap[*h.UserID]; ok {
+				response[i].User = TaskUserResponse{
+					ID:        u.ID,
+					Name:      u.Name,
+					Email:     u.Email,
+					AvatarUrl: u.AvatarUrl,
+				}
+			} else {
+				return nil, ErrDataIntegrity
 			}
-		} else {
-			return nil, ErrDataIntegrity
 		}
 	}
 
@@ -1070,11 +1060,11 @@ func (s *service) HandleParticipantDelete(event events.Event) error {
 		}
 
 		if t.AssigneeID != nil && *t.AssigneeID == data.UserID {
-			changes = append(changes, FieldChange{"assignee_id", t.AssigneeID, nil})
+			changes = append(changes, FieldChange{Field: "assignee_id", OldValue: t.AssigneeID})
 			tasks[i].AssigneeID = nil
 		}
 		if t.ReporterID != nil && *t.ReporterID == data.UserID {
-			changes = append(changes, FieldChange{"reporter_id", t.ReporterID, nil})
+			changes = append(changes, FieldChange{Field: "reporter_id", OldValue: t.ReporterID})
 			tasks[i].ReporterID = nil
 		}
 
@@ -1106,4 +1096,44 @@ func (s *service) HandleParticipantDelete(event events.Event) error {
 		return err
 	}
 	return nil
+}
+
+func equalUUIDPtr(a, b *uuid.UUID) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func equalUintPtr(a, b *uint) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func equalStringPtr(a, b *string) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return *a == *b
+}
+
+func equalTimePtr(a, b *time.Time) bool {
+	if a == nil && b == nil {
+		return true
+	}
+	if a == nil || b == nil {
+		return false
+	}
+	return a.Equal(*b)
 }
