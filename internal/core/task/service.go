@@ -1050,6 +1050,29 @@ func (s *service) HandleParticipantDelete(event events2.Event) error {
 		return nil
 	}
 
+	userIDsMap := make(map[uuid.UUID]struct{})
+	for _, t := range tasks {
+		if t.AssigneeID != nil && *t.AssigneeID == data.UserID {
+			userIDsMap[*t.AssigneeID] = struct{}{}
+		}
+		if t.ReporterID != nil && *t.ReporterID == data.UserID {
+			userIDsMap[*t.ReporterID] = struct{}{}
+		}
+	}
+
+	userIDs := make([]uuid.UUID, 0, len(userIDsMap))
+	for id := range userIDsMap {
+		userIDs = append(userIDs, id)
+	}
+	users, err := s.userRepo.GetListByIDs(ctxT, userIDs)
+	if err != nil {
+		return err
+	}
+	usersMap := make(map[uuid.UUID]models.User, len(users))
+	for _, u := range users {
+		usersMap[u.ID] = u
+	}
+
 	var histories []models.UpdateHistory
 	now := time.Now()
 	for i, t := range tasks {
@@ -1060,11 +1083,11 @@ func (s *service) HandleParticipantDelete(event events2.Event) error {
 		}
 
 		if t.AssigneeID != nil && *t.AssigneeID == data.UserID {
-			changes = append(changes, FieldChange{Field: "assignee_id", OldValue: t.AssigneeID})
+			changes = append(changes, FieldChange{Field: "assignee", OldValue: t.AssigneeID, OldName: usersMap[*t.AssigneeID].Name})
 			tasks[i].AssigneeID = nil
 		}
 		if t.ReporterID != nil && *t.ReporterID == data.UserID {
-			changes = append(changes, FieldChange{Field: "reporter_id", OldValue: t.ReporterID})
+			changes = append(changes, FieldChange{Field: "reporter", OldValue: t.ReporterID, OldName: usersMap[*t.ReporterID].Name})
 			tasks[i].ReporterID = nil
 		}
 
