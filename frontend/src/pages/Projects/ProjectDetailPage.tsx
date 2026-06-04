@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getProjectById, getProjectTasks, getProjectMembers, getProjectAttachments, updateProjectApi, deleteProjectApi, createTaskApi, updateTaskApi, deleteTaskApi, updateMemberRoleApi, removeMemberApi, getProjectStatusesApi, getProjectPrioritiesApi } from '../../api/projects';
+import type { CreateTaskPayload } from '../../api/projects';
 import type { Task, ProjectMember, Attachment } from '../../types/task';
 import type { Project } from '../../types/project';
 import { useNotifications } from '../../contexts/useNotifications';
@@ -173,6 +174,8 @@ export default function ProjectDetailPage() {
 
     const handleTaskMove = useCallback((taskId: number, newStatusName: string) => {
         if (!project) return;
+        const task = tasks.find(t => t.id === taskId);
+        if (task && task.status.name === newStatusName) return;
         const newStatus = project.statuses.find(s => s.name === newStatusName);
         if (!newStatus) return;
 
@@ -180,7 +183,7 @@ export default function ProjectDetailPage() {
         setFilteredTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
         updateTaskApi(project.id, taskId, { status_id: newStatus.id })
             .catch(() => addNotification('error', 'Ошибка при перемещении задачи'));
-    }, [project, addNotification]);
+    }, [project, tasks, addNotification]);
 
     const handleRefetchProject = useCallback(() => {
         if (!id || !project) return;
@@ -230,17 +233,16 @@ export default function ProjectDetailPage() {
         if (!project || !editTask) return;
         const statusObj = project.statuses.find(s => s.name === data.status) || project.statuses[0];
         const priorityObj = project.priorities.find(p => p.title === data.priority) || project.priorities[0];
+        const assigneeUser = data.assignee ? allMembers.find(m => m.User.user_id === data.assignee) : null;
 
-        const payload: Record<string, unknown> = {
+        const payload: Partial<CreateTaskPayload> = {
             title: data.title,
             description: data.description,
             deadline: data.deadline ? `${data.deadline}T00:00:00Z` : null,
             status_id: statusObj.id,
             priority_id: priorityObj.id,
+            assignee_id: assigneeUser?.User.user_id ?? null,
         };
-        if (data.assignee) {
-            payload.assignee_id = data.assignee;
-        }
 
         updateTaskApi(project.id, editTask.id, payload, editTask.is_archive || undefined)
             .then(updated => {
@@ -250,7 +252,7 @@ export default function ProjectDetailPage() {
                 addNotification('success', 'Задача обновлена');
             })
             .catch(() => addNotification('error', 'Ошибка обновления задачи'));
-    }, [project, editTask, addNotification]);
+    }, [project, editTask, allMembers, addNotification]);
 
     const handleArchiveTask = useCallback((task: Task) => {
         if (!project) return;

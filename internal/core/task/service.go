@@ -823,11 +823,18 @@ func (s *service) Update(ctx context.Context, taskID uint, req *UpdateTaskReques
 			if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 				return nil, err
 			}
-			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
-				return nil, ErrAssigneeNotInProject
-			}
-			if assignee.Role != "member" {
+			if assignee != nil && assignee.Role != "member" {
 				return nil, ErrInvalidAssigneeRole
+			}
+
+			if assignee == nil || errors.Is(err, gorm.ErrRecordNotFound) {
+				projectData, err := s.projectRepo.GetByID(ctxT, taskOld.ProjectID)
+				if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, ErrProjectNotFound
+				}
+				if projectData.OwnerID != *req.AssigneeID.Value {
+					return nil, ErrAssigneeNotInProject
+				}
 			}
 		}
 		fc := FieldChange{Field: "assignee", OldValue: taskOld.AssigneeID, NewValue: req.AssigneeID.Value}
