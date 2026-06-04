@@ -3,10 +3,10 @@ package middleware
 import (
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
+	"nexa-task-tracker/pkg/jwt"
 	"strings"
 
 	"github.com/gin-gonic/gin"
-	"nexa-task-tracker/internal/pkg/jwt"
 )
 
 func Auth(jwtSecret string) gin.HandlerFunc {

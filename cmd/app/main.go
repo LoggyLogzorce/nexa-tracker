@@ -7,6 +7,7 @@ import (
 	"log"
 	"nexa-task-tracker/internal/core/auth/oauth"
 	"nexa-task-tracker/internal/models"
+	"nexa-task-tracker/pkg/events"
 	"os"
 	_ "os"
 	"os/signal"
@@ -24,7 +25,6 @@ import (
 	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/db"
-	"nexa-task-tracker/internal/pkg/events"
 )
 
 func main() {

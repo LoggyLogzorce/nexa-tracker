@@ -3,7 +3,7 @@ package notify
 import (
 	"fmt"
 	"nexa-task-tracker/internal/core/user"
-	"nexa-task-tracker/internal/pkg/events"
+	"nexa-task-tracker/pkg/events"
 )
 
 // HandleUserDeleted обрабатывает событие удаления пользователя

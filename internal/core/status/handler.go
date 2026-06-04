@@ -6,9 +6,9 @@ import (
 	"github.com/google/uuid"
 	"net/http"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
-	"nexa-task-tracker/internal/pkg/response"
-	"nexa-task-tracker/internal/pkg/validation"
+	"nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/response"
+	"nexa-task-tracker/pkg/validation"
 	"strconv"
 	"strings"
 )

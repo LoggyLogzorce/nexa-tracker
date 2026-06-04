@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/nullable"
-	"nexa-task-tracker/internal/pkg/response"
-	"nexa-task-tracker/internal/pkg/validation"
+	"nexa-task-tracker/pkg/nullable"
+	"nexa-task-tracker/pkg/response"
+	"nexa-task-tracker/pkg/validation"
 
 	"github.com/gin-gonic/gin"
 )

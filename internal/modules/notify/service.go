@@ -1,6 +1,8 @@
 package notify
 
-import "nexa-task-tracker/internal/pkg/events"
+import (
+	"nexa-task-tracker/pkg/events"
+)
 
 type Service interface {
 	Create(notification *Notification) error

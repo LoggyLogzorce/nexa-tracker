@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
+	events2 "nexa-task-tracker/pkg/events"
 	"time"
 )
 
@@ -23,10 +23,10 @@ type Service interface {
 type service struct {
 	repo     Repository
 	userRepo user.Repository
-	eventBus *events.EventBus
+	eventBus *events2.EventBus
 }
 
-func NewService(repo Repository, userRepo user.Repository, eventBus *events.EventBus) Service {
+func NewService(repo Repository, userRepo user.Repository, eventBus *events2.EventBus) Service {
 	return &service{
 		repo:     repo,
 		userRepo: userRepo,
@@ -133,8 +133,8 @@ func (s *service) RemoveParticipant(ctx context.Context, participant *models.Pro
 		return err
 	}
 
-	pEvent := events.ParticipantEvent{
-		Type:      events.ParticipantDelete,
+	pEvent := events2.ParticipantEvent{
+		Type:      events2.ParticipantDelete,
 		ProjectID: participant.ProjectID,
 		UserID:    participant.UserID,
 		Role:      participant.Role,

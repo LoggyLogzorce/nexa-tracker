@@ -6,14 +6,13 @@ import (
 	"log"
 	"net/http"
 	"nexa-task-tracker/internal/ctxkeys"
-	"nexa-task-tracker/internal/pkg/cookie"
-	"nexa-task-tracker/internal/pkg/hash"
-	"nexa-task-tracker/internal/pkg/validation"
+	"nexa-task-tracker/pkg/cookie"
+	"nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/hash"
+	"nexa-task-tracker/pkg/response"
+	"nexa-task-tracker/pkg/validation"
 	"strconv"
 	"time"
-
-	"nexa-task-tracker/internal/pkg/events"
-	"nexa-task-tracker/internal/pkg/response"
 
 	"github.com/gin-gonic/gin"
 )

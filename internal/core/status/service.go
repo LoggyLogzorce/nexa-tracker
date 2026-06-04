@@ -7,8 +7,8 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
-	"nexa-task-tracker/internal/pkg/validation"
+	events2 "nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/validation"
 	"time"
 )
 
@@ -18,8 +18,8 @@ type Service interface {
 	GetByProjectID(ctx context.Context, projectID uuid.UUID) ([]models.Status, error)
 	Update(ctx context.Context, id uint, projectID uuid.UUID, updates UpdateStatusRequest) (*models.Status, error)
 	Delete(ctx context.Context, id uint, projectID uuid.UUID) error
-	HandleProjectDeleted(event events.Event) error
-	HandleProjectCreated(event events.Event) error
+	HandleProjectDeleted(event events2.Event) error
+	HandleProjectCreated(event events2.Event) error
 }
 
 type service struct {
@@ -317,8 +317,8 @@ func (s *service) Delete(ctx context.Context, id uint, projectID uuid.UUID) erro
 	return nil
 }
 
-func (s *service) HandleProjectDeleted(event events.Event) error {
-	data, ok := event.Data.(events.ProjectEvent)
+func (s *service) HandleProjectDeleted(event events2.Event) error {
+	data, ok := event.Data.(events2.ProjectEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}
@@ -334,8 +334,8 @@ func (s *service) HandleProjectDeleted(event events.Event) error {
 	return nil
 }
 
-func (s *service) HandleProjectCreated(event events.Event) error {
-	data, ok := event.Data.(events.ProjectEvent)
+func (s *service) HandleProjectCreated(event events2.Event) error {
+	data, ok := event.Data.(events2.ProjectEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}

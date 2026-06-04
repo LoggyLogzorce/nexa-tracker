@@ -4,12 +4,12 @@ import (
 	"errors"
 	"net/http"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
+	"nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/response"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"nexa-task-tracker/internal/pkg/response"
 )
 
 type Handler struct {

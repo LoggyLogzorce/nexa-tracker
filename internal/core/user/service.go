@@ -7,6 +7,8 @@ import (
 	"io"
 	"log"
 	"nexa-task-tracker/internal/models"
+	events2 "nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/hash"
 	"os"
 	"path/filepath"
 	"strings"
@@ -14,8 +16,6 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"nexa-task-tracker/internal/pkg/events"
-	"nexa-task-tracker/internal/pkg/hash"
 )
 
 type Service interface {
@@ -30,10 +30,10 @@ type Service interface {
 
 type service struct {
 	repo     Repository
-	eventBus *events.EventBus
+	eventBus *events2.EventBus
 }
 
-func NewService(repo Repository, eventBus *events.EventBus) Service {
+func NewService(repo Repository, eventBus *events2.EventBus) Service {
 	return &service{
 		repo:     repo,
 		eventBus: eventBus,
@@ -225,7 +225,7 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, password string) err
 	//}
 
 	// 7. Опубликовать событие UserDeleted
-	event := events.UserDeletedEvent{
+	event := events2.UserDeletedEvent{
 		UserID: id,
 		Email:  user.Email,
 		Name:   user.Name,

@@ -10,8 +10,8 @@ import (
 	"nexa-task-tracker/internal/core/auth"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/hash"
-	jwtpkg "nexa-task-tracker/internal/pkg/jwt"
+	"nexa-task-tracker/pkg/hash"
+	jwtpkg "nexa-task-tracker/pkg/jwt"
 	"time"
 )
 

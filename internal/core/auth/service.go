@@ -5,15 +5,14 @@ import (
 	"errors"
 	"fmt"
 	"nexa-task-tracker/internal/models"
+	events2 "nexa-task-tracker/pkg/events"
+	"nexa-task-tracker/pkg/hash"
+	jwtpkg "nexa-task-tracker/pkg/jwt"
 	"time"
-
-	"nexa-task-tracker/internal/core/user"
-	"nexa-task-tracker/internal/pkg/events"
-	"nexa-task-tracker/internal/pkg/hash"
-	jwtpkg "nexa-task-tracker/internal/pkg/jwt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"nexa-task-tracker/internal/core/user"
 )
 
 type Service interface {
@@ -21,7 +20,7 @@ type Service interface {
 	Login(ctx context.Context, email, password, userAgent, ipAddress string) (accessToken, refreshToken string, err error)
 	RefreshToken(ctx context.Context, refreshToken string) (accessToken, newRefreshToken string, err error)
 	Logout(ctx context.Context, refreshToken string) error
-	HandleUserDeleted(event events.Event) error
+	HandleUserDeleted(event events2.Event) error
 	ChangePassword(ctx context.Context, id uuid.UUID, req ChangePasswordRequest) error
 	Setup2FA(ctx context.Context, userID string) (secret, qrCode string, err error)
 	Verify2FA(ctx context.Context, userID, code string) error
@@ -246,8 +245,8 @@ func (s *service) Logout(ctx context.Context, refreshToken string) error {
 	return s.repo.RevokeRefreshToken(ctxT, tokenHash)
 }
 
-func (s *service) HandleUserDeleted(event events.Event) error {
-	data, ok := event.Data.(events.UserDeletedEvent)
+func (s *service) HandleUserDeleted(event events2.Event) error {
+	data, ok := event.Data.(events2.UserDeletedEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}

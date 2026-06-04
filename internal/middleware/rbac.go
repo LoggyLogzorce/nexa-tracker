@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"nexa-task-tracker/internal/core/task"
 	"nexa-task-tracker/internal/ctxkeys"
-	"nexa-task-tracker/internal/pkg/response"
+	"nexa-task-tracker/pkg/response"
 	"strconv"
 	"time"
 

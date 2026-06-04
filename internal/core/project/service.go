@@ -10,7 +10,7 @@ import (
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
+	events2 "nexa-task-tracker/pkg/events"
 	"time"
 )
 
@@ -26,14 +26,14 @@ type Service interface {
 
 type service struct {
 	repo            Repository
-	eventBus        *events.EventBus
+	eventBus        *events2.EventBus
 	userRepo        user.Repository
 	statusRepo      status.Repository
 	priorityRepo    priority.Repository
 	participantRepo participant.Repository
 }
 
-func NewService(repo Repository, eventBus *events.EventBus, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
+func NewService(repo Repository, eventBus *events2.EventBus, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository) Service {
 	return &service{
 		repo:            repo,
 		eventBus:        eventBus,
@@ -69,8 +69,8 @@ func (s *service) Create(ctx context.Context, project *models.Project, ownerID u
 		return nil, err
 	}
 
-	event := events.ProjectEvent{
-		Type:      events.ProjectCreated,
+	event := events2.ProjectEvent{
+		Type:      events2.ProjectCreated,
 		ProjectID: project.ID,
 	}
 	s.eventBus.Publish(event.ToEvent())
@@ -469,8 +469,8 @@ func (s *service) Delete(ctx context.Context, id uuid.UUID, userID uuid.UUID) er
 	}
 
 	// 2. Опубликовать событие ProjectDeleted
-	event := events.ProjectEvent{
-		Type:      events.ProjectDeleted,
+	event := events2.ProjectEvent{
+		Type:      events2.ProjectDeleted,
 		ProjectID: id,
 	}
 	s.eventBus.Publish(event.ToEvent())

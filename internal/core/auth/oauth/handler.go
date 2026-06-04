@@ -4,8 +4,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"net/http"
-	"nexa-task-tracker/internal/pkg/cookie"
-	"nexa-task-tracker/internal/pkg/response"
+	"nexa-task-tracker/pkg/cookie"
+	"nexa-task-tracker/pkg/response"
 	"time"
 )
 

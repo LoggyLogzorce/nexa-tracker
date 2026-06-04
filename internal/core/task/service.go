@@ -15,7 +15,7 @@ import (
 	"nexa-task-tracker/internal/core/status"
 	"nexa-task-tracker/internal/core/user"
 	"nexa-task-tracker/internal/models"
-	"nexa-task-tracker/internal/pkg/events"
+	events2 "nexa-task-tracker/pkg/events"
 	"time"
 )
 
@@ -30,7 +30,7 @@ type Service interface {
 
 	GetHistoryByTaskID(ctx context.Context, taskID uint) ([]HistoryResponse, error)
 
-	HandleParticipantDelete(event events.Event) error
+	HandleParticipantDelete(event events2.Event) error
 }
 
 type service struct {
@@ -40,10 +40,10 @@ type service struct {
 	priorityRepo    priority.Repository
 	participantRepo participant.Repository
 	projectRepo     project.Repository
-	eventBus        *events.EventBus
+	eventBus        *events2.EventBus
 }
 
-func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository, projectRepo project.Repository, eventBus *events.EventBus) Service {
+func NewService(repo Repository, userRepo user.Repository, statusRepo status.Repository, priorityRepo priority.Repository, participantRepo participant.Repository, projectRepo project.Repository, eventBus *events2.EventBus) Service {
 	return &service{
 		repo:            repo,
 		userRepo:        userRepo,
@@ -171,8 +171,8 @@ func (s *service) Create(ctx context.Context, task *models.Task) (*TaskResponse,
 	taskRes.UpdatedAt = task.UpdatedAt
 
 	go func() {
-		event := events.TaskEvent{
-			Type:        events.TaskCreate,
+		event := events2.TaskEvent{
+			Type:        events2.TaskCreate,
 			ID:          task.ID,
 			CreatedAt:   task.CreatedAt,
 			UpdatedAt:   task.UpdatedAt,
@@ -959,8 +959,8 @@ func (s *service) Delete(ctx context.Context, taskId uint, userID uuid.UUID) err
 	}
 
 	go func() {
-		event := events.TaskEvent{
-			Type:      events.TaskDelete,
+		event := events2.TaskEvent{
+			Type:      events2.TaskDelete,
 			ID:        taskId,
 			DeletedBy: userID,
 		}
@@ -1032,8 +1032,8 @@ func (s *service) GetHistoryByTaskID(ctx context.Context, taskID uint) ([]Histor
 	return response, nil
 }
 
-func (s *service) HandleParticipantDelete(event events.Event) error {
-	data, ok := event.Data.(events.ParticipantEvent)
+func (s *service) HandleParticipantDelete(event events2.Event) error {
+	data, ok := event.Data.(events2.ParticipantEvent)
 	if !ok {
 		return fmt.Errorf("invalid event data type")
 	}

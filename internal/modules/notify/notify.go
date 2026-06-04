@@ -6,7 +6,7 @@ import (
 	"log"
 	"nexa-task-tracker/internal/db"
 	"nexa-task-tracker/internal/middleware"
-	"nexa-task-tracker/internal/pkg/events"
+	"nexa-task-tracker/pkg/events"
 )
 
 // TODO: Implement notification module
