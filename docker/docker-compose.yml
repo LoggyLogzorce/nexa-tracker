@@ -16,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - kivo-networks
+      - kivo_networks
 
   app:
     build:
@@ -39,7 +39,7 @@ services:
     expose:
       - "8080"
     networks:
-      - kivo-networks
+      - kivo_networks
 
   frontend:
     build:
@@ -54,12 +54,12 @@ services:
     expose:
       - "3000"
     networks:
-      - kivo-networks
+      - kivo_networks
 
 volumes:
   postgres-data:
   attachments:
 
 networks:
-  kivo-networks:
+  kivo_networks:
     external: true
