@@ -2,6 +2,8 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: tracker-postgres
+    env_file:
+      - ../.env
     environment:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
@@ -14,7 +16,7 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - shared-network
+      - kivo-networks
 
   app:
     build:
@@ -37,7 +39,7 @@ services:
     expose:
       - "8080"
     networks:
-      - shared-network
+      - kivo-networks
 
   frontend:
     build:
@@ -52,12 +54,12 @@ services:
     expose:
       - "3000"
     networks:
-      - shared-network
+      - kivo-networks
 
 volumes:
   postgres-data:
   attachments:
 
 networks:
-  shared-network:
+  kivo-networks:
     external: true
